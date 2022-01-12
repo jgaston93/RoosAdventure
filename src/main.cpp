@@ -14,33 +14,35 @@ char Standing_Texture_Filename[] = "assets/roo_standing.png\0";
 char Walking_Texture_Filename_1[] = "assets/roo_walking_1.png\0";
 char Walking_Texture_Filename_2[] = "assets/roo_walking_2.png\0";
 char Idle_Texture_Filename[] = "assets/roo_sitting.png\0";
-char Level_Background_Filename[] = "assets/background.png\0";
-
-SDL_Texture* loadTexture(char* filename);
-void blit(SDL_Texture* texture, int x, int y, bool facing_right);
+char Level_Background_Texture_Filename[] = "assets/background.png\0";
+char Left_Counter_Texture_Filename[] = "assets/left_counter.png\0";
+char Back_Counter_Texture_Filename[] = "assets/back_counter.png\0";
+char Middle_Counter_Texture_Filename[] = "assets/middle_counter.png\0";
 
 SDL_Renderer *renderer;
 SDL_Window* window;
 
-typedef struct
+struct Animation
 {
     int num_textures;
     int current_texture_index;
     int animation_speed;
     int animation_counter;
     SDL_Texture* textures[10];
-} Animation;
+};
 
-typedef struct
+struct Obstacle
 {
     SDL_Texture* texture;
     float x;
     float y;
     int width;
-    int height;    
-} Obstacle;
+    int height;
+    float texture_x_offset;
+    float texture_y_offset;
+};
 
-typedef struct
+struct Entity
 {
     float x;
     float y;
@@ -55,18 +57,31 @@ typedef struct
     bool facing_right;
     int idle_counter;
     int idle_threshold;
-} Entity;
+};
 
-typedef struct
+struct Level
 {
     SDL_Texture* background_texture;
-    int num_obstacles;
-    Obstacle obstacles[MAX_NUM_OBSTACLES];
+    int num_pre_character_draw_obstacles;
+    int num_post_character_draw_obstacles;
+    Obstacle pre_character_draw_obstacles[MAX_NUM_OBSTACLES];
+    Obstacle post_character_draw_obstacles[MAX_NUM_OBSTACLES];
     float x_init;
     float y_init;
-} Level;
+};
+
+typedef struct Animation Animation;
+typedef struct Obstacle Obstacle;
+typedef struct Entity Entity;
+typedef struct Level Level;
 
 std::map<SDL_Scancode, bool> key_map;
+
+SDL_Texture* loadTexture(char* filename);
+void blit(SDL_Texture* texture, int x, int y, int x_offset, int y_offset);
+void blit(SDL_Texture* texture, int x, int y, bool facing_right);
+bool checkXCollision(Entity e, Obstacle o);
+bool checkYCollision(Entity e, Obstacle o);
 
 int main(int argv, char** args)
 {
@@ -82,14 +97,22 @@ int main(int argv, char** args)
     memset(&level, 0, sizeof(Level));
     memset(&player, 0, sizeof(Entity));
 
-    level.background_texture = loadTexture(Level_Background_Filename);
-
-    player.x = 0;
-    player.y = 0;
     player.width = 100;
     player.height = 100;
     player.speed = 100;
     player.idle_threshold = 200;
+
+    level.background_texture = loadTexture(Level_Background_Texture_Filename);
+    level.num_pre_character_draw_obstacles = 2;
+    level.num_post_character_draw_obstacles = 1;
+    level.pre_character_draw_obstacles[0] = { loadTexture(Left_Counter_Texture_Filename), 0.0, 0.0, 100, 400, 0, 0};
+    level.pre_character_draw_obstacles[1] = { loadTexture(Back_Counter_Texture_Filename), 100, 0.0, 700, 200, 0, 0};
+    level.post_character_draw_obstacles[0] = { loadTexture(Middle_Counter_Texture_Filename), 300.0, 310.0, 300, 190, 0, -100};
+    level.x_init = 0; // SCREEN_WIDTH / 2 - player.width / 2;
+    level.y_init = SCREEN_HEIGHT - player.height;// SCREEN_HEIGHT / 2 - player.height / 2;
+
+    player.x = level.x_init;
+    player.y = level.y_init;
 
     player.animations[0].num_textures = 1;
     player.animations[0].textures[0] = loadTexture(Standing_Texture_Filename);
@@ -226,15 +249,56 @@ int main(int argv, char** args)
 
         int current_time = SDL_GetTicks();
         float delta_time = (current_time - prev_time) * 1e-3;
+        prev_time = current_time;
+
         player.x += player.dx * delta_time;
         player.y += player.dy * delta_time;
-        prev_time = current_time;
+
+        bool x_collision = false;
+        bool y_collision = false;
+        for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
+        {
+            x_collision = checkXCollision(player, level.pre_character_draw_obstacles[i]);
+            y_collision = checkYCollision(player, level.pre_character_draw_obstacles[i]);
+            if(x_collision && y_collision)
+            {
+                break;
+            }
+        }
+        if(!(x_collision && y_collision))
+        {
+            for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
+            {
+                x_collision = checkXCollision(player, level.post_character_draw_obstacles[i]);
+                y_collision = checkYCollision(player, level.post_character_draw_obstacles[i]);
+                if(x_collision && y_collision)
+                {
+                    break;
+                }
+            }
+        }
+
+        if(x_collision && y_collision)
+        {
+            player.x -= player.dx * delta_time;
+            player.y -= player.dy * delta_time;
+        }
 
 		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 		SDL_RenderClear(renderer);
 
+        for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
+        {
+            Obstacle o = level.pre_character_draw_obstacles[i];
+            blit(o.texture, o.x, o.y, o.texture_x_offset, o.texture_y_offset);
+        }
         blit(player.current_texture, player.x, player.y, player.facing_right);
-
+        for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
+        {
+            Obstacle o = level.post_character_draw_obstacles[i];
+            blit(o.texture, o.x, o.y, o.texture_x_offset, o.texture_y_offset);
+        }
+        
 		SDL_RenderPresent(renderer);
 
         int next_frame_time = num_frames++ * MS_PER_FRAME;
@@ -264,6 +328,18 @@ SDL_Texture *loadTexture(char *filename)
 	return texture;
 }
 
+void blit(SDL_Texture *texture, int x, int y, int x_offset, int y_offset)
+{
+	SDL_Rect dest;
+
+	dest.x = x + x_offset;
+	dest.y = y + y_offset;
+
+	SDL_QueryTexture(texture, NULL, NULL, &dest.w, &dest.h);
+
+	SDL_RenderCopy(renderer, texture, NULL, &dest);
+}
+
 void blit(SDL_Texture *texture, int x, int y, bool facing_right)
 {
 	SDL_Rect dest;
@@ -280,4 +356,16 @@ void blit(SDL_Texture *texture, int x, int y, bool facing_right)
 	SDL_QueryTexture(texture, NULL, NULL, &dest.w, &dest.h);
 
 	SDL_RenderCopyEx(renderer, texture, NULL, &dest, 0, NULL, flip);
+}
+
+bool checkXCollision(Entity e, Obstacle o)
+{
+    bool x_collision = e.x + e.width >= o.x && o.x + o.width > e.x;
+    return x_collision;
+}
+
+bool checkYCollision(Entity e, Obstacle o)
+{
+    bool y_collision = e.y + e.height >= o.y && o.y + o.height > e.y;
+    return y_collision;
 }

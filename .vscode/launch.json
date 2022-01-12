@@ -12,7 +12,7 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
-            "miDebuggerPath": "gdb.exe",
+            "miDebuggerPath": "C:/msys64/mingw64/bin/gdb.exe",
             "setupCommands": [
                 {
                     "description": "Enably pretty printing",
