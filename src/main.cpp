@@ -3,13 +3,18 @@
 #include <iostream>
 #include <map>
 
-const int SCREEN_WIDTH = 640;
-const int SCREEN_HEIGHT = 480;
+const int SCREEN_WIDTH = 800;
+const int SCREEN_HEIGHT = 600;
+const int MAX_NUM_OBSTACLES = 20;
+const int MS_PER_FRAME = 16;
+
 std::string Window_Title = "Hello SDL";
+
 char Standing_Texture_Filename[] = "assets/roo_standing.png\0";
 char Walking_Texture_Filename_1[] = "assets/roo_walking_1.png\0";
 char Walking_Texture_Filename_2[] = "assets/roo_walking_2.png\0";
 char Idle_Texture_Filename[] = "assets/roo_sitting.png\0";
+char Level_Background_Filename[] = "assets/background.png\0";
 
 SDL_Texture* loadTexture(char* filename);
 void blit(SDL_Texture* texture, int x, int y, bool facing_right);
@@ -26,6 +31,14 @@ typedef struct
     SDL_Texture* textures[10];
 } Animation;
 
+typedef struct
+{
+    SDL_Texture* texture;
+    float x;
+    float y;
+    int width;
+    int height;    
+} Obstacle;
 
 typedef struct
 {
@@ -44,6 +57,15 @@ typedef struct
     int idle_threshold;
 } Entity;
 
+typedef struct
+{
+    SDL_Texture* background_texture;
+    int num_obstacles;
+    Obstacle obstacles[MAX_NUM_OBSTACLES];
+    float x_init;
+    float y_init;
+} Level;
+
 std::map<SDL_Scancode, bool> key_map;
 
 int main(int argv, char** args)
@@ -55,11 +77,15 @@ int main(int argv, char** args)
 
     IMG_Init(IMG_INIT_PNG);
 
+    Level level;
     Entity player;
+    memset(&level, 0, sizeof(Level));
     memset(&player, 0, sizeof(Entity));
 
-    player.x = 100;
-    player.y = 100;
+    level.background_texture = loadTexture(Level_Background_Filename);
+
+    player.x = 0;
+    player.y = 0;
     player.width = 100;
     player.height = 100;
     player.speed = 100;
@@ -85,6 +111,8 @@ int main(int argv, char** args)
 
 	bool isRunning = true;
 	SDL_Event event;
+    int num_frames = 0;
+    int prev_time = 0;
 
 	while (isRunning)
 	{
@@ -95,7 +123,6 @@ int main(int argv, char** args)
 			case SDL_QUIT:
 				isRunning = false;
 				break;
-
 			case SDL_KEYDOWN:
 				if (event.key.keysym.sym == SDLK_ESCAPE)
 				{
@@ -197,8 +224,11 @@ int main(int argv, char** args)
             player.current_texture = animation->textures[animation->current_texture_index];
         }        
 
-        player.x += player.dx * 0.016;
-        player.y += player.dy * 0.016;
+        int current_time = SDL_GetTicks();
+        float delta_time = (current_time - prev_time) * 1e-3;
+        player.x += player.dx * delta_time;
+        player.y += player.dy * delta_time;
+        prev_time = current_time;
 
 		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 		SDL_RenderClear(renderer);
@@ -207,7 +237,13 @@ int main(int argv, char** args)
 
 		SDL_RenderPresent(renderer);
 
-        SDL_Delay(16);
+        int next_frame_time = num_frames++ * MS_PER_FRAME;
+        current_time = SDL_GetTicks();
+        if(current_time < next_frame_time)
+        {
+            int ms_to_sleep = next_frame_time - current_time;
+            SDL_Delay(ms_to_sleep);
+        }
 	}
 
 	SDL_DestroyRenderer(renderer);
