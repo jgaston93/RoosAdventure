@@ -6,18 +6,22 @@
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
 const int MAX_NUM_OBSTACLES = 20;
+const int MAX_NUM_COLLECTIBLES = 20;
+const int MAX_NUM_LEVELS = 20;
+const int MAX_NUM_EXITS = 10;
 const int MS_PER_FRAME = 16;
 
-std::string Window_Title = "Hello SDL";
+std::string Window_Title = "Roo's Adventure";
 
 char Standing_Texture_Filename[] = "assets/roo_standing.png\0";
 char Walking_Texture_Filename_1[] = "assets/roo_walking_1.png\0";
 char Walking_Texture_Filename_2[] = "assets/roo_walking_2.png\0";
 char Idle_Texture_Filename[] = "assets/roo_sitting.png\0";
-char Level_Background_Texture_Filename[] = "assets/background.png\0";
 char Left_Counter_Texture_Filename[] = "assets/left_counter.png\0";
 char Back_Counter_Texture_Filename[] = "assets/back_counter.png\0";
 char Middle_Counter_Texture_Filename[] = "assets/middle_counter.png\0";
+char White_Lamb_Texture_Filename[] = "assets/white_lamb.png\0";
+char Living_Room_Level_Background_Texture_Filename[] = "assets/living_room_level_background.png\0";
 
 SDL_Renderer *renderer;
 SDL_Window* window;
@@ -33,13 +37,13 @@ struct Animation
 
 struct Obstacle
 {
-    SDL_Texture* texture;
     float x;
     float y;
     int width;
     int height;
     float texture_x_offset;
     float texture_y_offset;
+    SDL_Texture* texture;
 };
 
 struct Entity
@@ -59,6 +63,25 @@ struct Entity
     int idle_threshold;
 };
 
+struct Collectible
+{
+    float x;
+    float y;
+    int width;
+    int height;
+    bool collected;
+    SDL_Texture* texture;
+};
+
+struct Exit
+{
+    float x;
+    float y;
+    int width;
+    int height;
+    int next_level_index;
+};
+
 struct Level
 {
     SDL_Texture* background_texture;
@@ -66,6 +89,10 @@ struct Level
     int num_post_character_draw_obstacles;
     Obstacle pre_character_draw_obstacles[MAX_NUM_OBSTACLES];
     Obstacle post_character_draw_obstacles[MAX_NUM_OBSTACLES];
+    int num_collectibles;
+    Collectible collectibles[MAX_NUM_COLLECTIBLES];
+    int num_exits;
+    Exit exits[MAX_NUM_EXITS];
     float x_init;
     float y_init;
 };
@@ -73,6 +100,7 @@ struct Level
 typedef struct Animation Animation;
 typedef struct Obstacle Obstacle;
 typedef struct Entity Entity;
+typedef struct Collectible Collectible;
 typedef struct Level Level;
 
 std::map<SDL_Scancode, bool> key_map;
@@ -82,6 +110,8 @@ void blit(SDL_Texture* texture, int x, int y, int x_offset, int y_offset);
 void blit(SDL_Texture* texture, int x, int y, bool facing_right);
 bool checkXCollision(Entity e, Obstacle o);
 bool checkYCollision(Entity e, Obstacle o);
+bool checkCollision(Entity e, Collectible c);
+bool checkCollision(Entity en, Exit ex);
 
 int main(int argv, char** args)
 {
@@ -92,9 +122,11 @@ int main(int argv, char** args)
 
     IMG_Init(IMG_INIT_PNG);
 
-    Level level;
+    Level kitchen_level;
+    Level living_room_level;
     Entity player;
-    memset(&level, 0, sizeof(Level));
+    memset(&kitchen_level, 0, sizeof(Level));
+    memset(&living_room_level, 0, sizeof(Level));
     memset(&player, 0, sizeof(Entity));
 
     player.width = 100;
@@ -102,17 +134,38 @@ int main(int argv, char** args)
     player.speed = 100;
     player.idle_threshold = 200;
 
-    level.background_texture = loadTexture(Level_Background_Texture_Filename);
-    level.num_pre_character_draw_obstacles = 2;
-    level.num_post_character_draw_obstacles = 1;
-    level.pre_character_draw_obstacles[0] = { loadTexture(Left_Counter_Texture_Filename), 0.0, 0.0, 100, 400, 0, 0};
-    level.pre_character_draw_obstacles[1] = { loadTexture(Back_Counter_Texture_Filename), 100, 0.0, 700, 200, 0, 0};
-    level.post_character_draw_obstacles[0] = { loadTexture(Middle_Counter_Texture_Filename), 300.0, 310.0, 300, 190, 0, -100};
-    level.x_init = 0; // SCREEN_WIDTH / 2 - player.width / 2;
-    level.y_init = SCREEN_HEIGHT - player.height;// SCREEN_HEIGHT / 2 - player.height / 2;
+    kitchen_level.background_texture = NULL;
+    kitchen_level.num_pre_character_draw_obstacles = 3;
+    kitchen_level.num_post_character_draw_obstacles = 1;
+    kitchen_level.pre_character_draw_obstacles[0] = { 0.0, 0.0, 100, 350, 0, 0, loadTexture(Left_Counter_Texture_Filename) };
+    kitchen_level.pre_character_draw_obstacles[1] = { 100, 0.0, 700, 200, 0, 0, loadTexture(Back_Counter_Texture_Filename) };
+    kitchen_level.pre_character_draw_obstacles[2] = { 0.0, 600.0, 800, 100, 0, 0, NULL };
+    kitchen_level.post_character_draw_obstacles[0] = { 300.0, 310.0, 300, 180, 0, -100, loadTexture(Middle_Counter_Texture_Filename) };
+    kitchen_level.x_init = 0; // SCREEN_WIDTH / 2 - player.width / 2;
+    kitchen_level.y_init = 400;// SCREEN_HEIGHT / 2 - player.height / 2;
+    kitchen_level.num_collectibles = 1;
+    kitchen_level.collectibles[0] = { 400, SCREEN_HEIGHT - 100, 100, 100, false, loadTexture(White_Lamb_Texture_Filename) };
+    kitchen_level.num_exits = 1;
+    kitchen_level.exits[0] = { -(100.0 + player.width / 2.0), 400, 100, 200, 1 };
 
-    player.x = level.x_init;
-    player.y = level.y_init;
+    living_room_level.background_texture = loadTexture(Living_Room_Level_Background_Texture_Filename);
+    living_room_level.num_pre_character_draw_obstacles = 4;
+    living_room_level.pre_character_draw_obstacles[0] = {0.0, 0.0, 615, 335, 0, 0, NULL };
+    living_room_level.pre_character_draw_obstacles[1] = {615.0, 0.0, 185, 113, 0, 0, NULL };
+    living_room_level.pre_character_draw_obstacles[2] = {0.0, 600.0, 800, 100, 0, 0, NULL };
+    living_room_level.pre_character_draw_obstacles[3] = {800.0, 0.0, 100, 600, 0, 0, NULL };
+    living_room_level.x_init = 0;
+    living_room_level.y_init = 400;
+    living_room_level.num_exits = 1;
+    living_room_level.exits[0] = { -(100.0 + player.width / 2.0), 335, 100, 265, 0 };
+
+    int current_level_index = 0;
+    Level levels[MAX_NUM_LEVELS];
+    levels[0] = kitchen_level;
+    levels[1] = living_room_level;
+
+    player.x = levels[current_level_index].x_init;
+    player.y = levels[current_level_index].y_init;
 
     player.animations[0].num_textures = 1;
     player.animations[0].textures[0] = loadTexture(Standing_Texture_Filename);
@@ -254,6 +307,21 @@ int main(int argv, char** args)
         player.x += player.dx * delta_time;
         player.y += player.dy * delta_time;
 
+        Level& level = levels[current_level_index];
+
+        for(int i = 0; i < level.num_collectibles; i++)
+        {
+            if(!level.collectibles[i].collected)
+            {
+                bool collision = checkCollision(player, level.collectibles[i]);
+                if(collision)
+                {
+                    level.collectibles[i].collected = true;
+                    level.num_collectibles -= 1;
+                }
+            }
+        }
+
         bool x_collision = false;
         bool y_collision = false;
         for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
@@ -283,20 +351,49 @@ int main(int argv, char** args)
             player.x -= player.dx * delta_time;
             player.y -= player.dy * delta_time;
         }
+        
+        for(int i = 0; i < level.num_exits; i++)
+        {
+            bool collision = checkCollision(player, level.exits[i]);
+            if(collision)
+            {
+                current_level_index = level.exits[i].next_level_index;
+                player.x = level.x_init;
+                player.y = level.y_init;
+            }
+        }
 
 		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 		SDL_RenderClear(renderer);
 
+        if(level.background_texture != NULL)
+        {
+            blit(level.background_texture, 0, 0, 0, 0);
+        }
+
         for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
         {
             Obstacle o = level.pre_character_draw_obstacles[i];
-            blit(o.texture, o.x, o.y, o.texture_x_offset, o.texture_y_offset);
+            if(o.texture != NULL)
+            {
+                blit(o.texture, o.x, o.y, o.texture_x_offset, o.texture_y_offset);
+            }
+        }
+        for(int i = 0; i < level.num_collectibles; i++)
+        {
+            if(!level.collectibles[i].collected)
+            {
+                blit(level.collectibles[i].texture, level.collectibles[i].x, level.collectibles[i].y, 0, 0);
+            }
         }
         blit(player.current_texture, player.x, player.y, player.facing_right);
         for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
         {
             Obstacle o = level.post_character_draw_obstacles[i];
-            blit(o.texture, o.x, o.y, o.texture_x_offset, o.texture_y_offset);
+            if(o.texture != NULL)
+            {
+                blit(o.texture, o.x, o.y, o.texture_x_offset, o.texture_y_offset);
+            }
         }
         
 		SDL_RenderPresent(renderer);
@@ -368,4 +465,20 @@ bool checkYCollision(Entity e, Obstacle o)
 {
     bool y_collision = e.y + e.height >= o.y && o.y + o.height > e.y;
     return y_collision;
+}
+
+bool checkCollision(Entity e, Collectible c)
+{
+    bool x_collision = e.x + e.width >= c.x && c.x + c.width > e.x;
+    bool y_collision = e.y + e.height >= c.y && c.y + c.height > e.y;
+
+    return x_collision && y_collision;
+}
+
+bool checkCollision(Entity en, Exit ex)
+{
+    bool x_collision = en.x + en.width >= ex.x && ex.x + ex.width > en.x;
+    bool y_collision = en.y + en.height >= ex.y && ex.y + ex.height > en.y;
+
+    return x_collision && y_collision;
 }
