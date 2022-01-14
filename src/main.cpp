@@ -110,6 +110,7 @@ void blit(SDL_Texture* texture, int x, int y, int x_offset, int y_offset);
 void blit(SDL_Texture* texture, int x, int y, bool facing_right);
 bool checkXCollision(Entity e, Obstacle o);
 bool checkYCollision(Entity e, Obstacle o);
+void resolveCollision(Entity& E, Obstacle o, float delta_x, float delta_y);
 bool checkCollision(Entity e, Collectible c);
 bool checkCollision(Entity en, Exit ex);
 
@@ -131,7 +132,7 @@ int main(int argv, char** args)
 
     player.width = 100;
     player.height = 100;
-    player.speed = 100;
+    player.speed = 200;
     player.idle_threshold = 200;
 
     kitchen_level.background_texture = NULL;
@@ -146,7 +147,7 @@ int main(int argv, char** args)
     kitchen_level.num_collectibles = 1;
     kitchen_level.collectibles[0] = { 400, SCREEN_HEIGHT - 100, 100, 100, false, loadTexture(White_Lamb_Texture_Filename) };
     kitchen_level.num_exits = 1;
-    kitchen_level.exits[0] = { -(100.0 + player.width / 2.0), 400, 100, 200, 1 };
+    kitchen_level.exits[0] = { -(100 + (float)player.width / 2), 400, 100, 200, 1 };
 
     living_room_level.background_texture = loadTexture(Living_Room_Level_Background_Texture_Filename);
     living_room_level.num_pre_character_draw_obstacles = 4;
@@ -157,7 +158,7 @@ int main(int argv, char** args)
     living_room_level.x_init = 0;
     living_room_level.y_init = 400;
     living_room_level.num_exits = 1;
-    living_room_level.exits[0] = { -(100.0 + player.width / 2.0), 335, 100, 265, 0 };
+    living_room_level.exits[0] = { -(100 + (float)player.width / 2), 335, 100, 265, 0 };
 
     int current_level_index = 0;
     Level levels[MAX_NUM_LEVELS];
@@ -304,11 +305,41 @@ int main(int argv, char** args)
         float delta_time = (current_time - prev_time) * 1e-3;
         prev_time = current_time;
 
+        Level& level = levels[current_level_index];
+        
+        // Move character
         player.x += player.dx * delta_time;
         player.y += player.dy * delta_time;
 
-        Level& level = levels[current_level_index];
+        // Check collision
+        bool x_collision = false;
+        bool y_collision = false;
+        for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
+        {
+            x_collision = checkXCollision(player, level.pre_character_draw_obstacles[i]);
+            y_collision = checkYCollision(player, level.pre_character_draw_obstacles[i]);
+            if(x_collision && y_collision)
+            {
+                resolveCollision(player, level.pre_character_draw_obstacles[i], player.dx * delta_time, player.dy * delta_time);
+            }
+        }
+        for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
+        {
+            x_collision = checkXCollision(player, level.post_character_draw_obstacles[i]);
+            y_collision = checkYCollision(player, level.post_character_draw_obstacles[i]);
+            if(x_collision && y_collision)
+            {
+                resolveCollision(player, level.post_character_draw_obstacles[i], player.dx * delta_time, player.dy * delta_time);
+            }
+        }
 
+        // if(x_collision && y_collision)
+        // {
+        //     player.x -= player.dx * delta_time;
+        //     player.y -= player.dy * delta_time;
+        // }
+
+        // Check collectible collision
         for(int i = 0; i < level.num_collectibles; i++)
         {
             if(!level.collectibles[i].collected)
@@ -321,37 +352,8 @@ int main(int argv, char** args)
                 }
             }
         }
-
-        bool x_collision = false;
-        bool y_collision = false;
-        for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
-        {
-            x_collision = checkXCollision(player, level.pre_character_draw_obstacles[i]);
-            y_collision = checkYCollision(player, level.pre_character_draw_obstacles[i]);
-            if(x_collision && y_collision)
-            {
-                break;
-            }
-        }
-        if(!(x_collision && y_collision))
-        {
-            for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
-            {
-                x_collision = checkXCollision(player, level.post_character_draw_obstacles[i]);
-                y_collision = checkYCollision(player, level.post_character_draw_obstacles[i]);
-                if(x_collision && y_collision)
-                {
-                    break;
-                }
-            }
-        }
-
-        if(x_collision && y_collision)
-        {
-            player.x -= player.dx * delta_time;
-            player.y -= player.dy * delta_time;
-        }
         
+        // Check for collision with exits
         for(int i = 0; i < level.num_exits; i++)
         {
             bool collision = checkCollision(player, level.exits[i]);
@@ -363,14 +365,17 @@ int main(int argv, char** args)
             }
         }
 
+        // Clear scene
 		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 		SDL_RenderClear(renderer);
 
+        // Draw level background if available
         if(level.background_texture != NULL)
         {
             blit(level.background_texture, 0, 0, 0, 0);
         }
 
+        // Draw obstacles before character
         for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
         {
             Obstacle o = level.pre_character_draw_obstacles[i];
@@ -379,6 +384,8 @@ int main(int argv, char** args)
                 blit(o.texture, o.x, o.y, o.texture_x_offset, o.texture_y_offset);
             }
         }
+
+        // Draw collectibles before character
         for(int i = 0; i < level.num_collectibles; i++)
         {
             if(!level.collectibles[i].collected)
@@ -386,7 +393,11 @@ int main(int argv, char** args)
                 blit(level.collectibles[i].texture, level.collectibles[i].x, level.collectibles[i].y, 0, 0);
             }
         }
+
+        // Draw character
         blit(player.current_texture, player.x, player.y, player.facing_right);
+
+        // Draw obstacles after character
         for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
         {
             Obstacle o = level.post_character_draw_obstacles[i];
@@ -396,8 +407,10 @@ int main(int argv, char** args)
             }
         }
         
+        // Present renderer
 		SDL_RenderPresent(renderer);
 
+        // Calculate time to sleep and sleep if necessary
         int next_frame_time = num_frames++ * MS_PER_FRAME;
         current_time = SDL_GetTicks();
         if(current_time < next_frame_time)
@@ -481,4 +494,43 @@ bool checkCollision(Entity en, Exit ex)
     bool y_collision = en.y + en.height >= ex.y && ex.y + ex.height > en.y;
 
     return x_collision && y_collision;
+}
+
+
+void resolveCollision(Entity& e, Obstacle o, float delta_x, float delta_y)
+{
+    float x_overlap = 0;
+    float y_overlap = 0;
+
+    if(e.x + e.width > o.x + o.width)
+    {
+        x_overlap = o.x + o.width - e.x;
+    }
+    else
+    {
+        x_overlap = e.x + e.width - o.x;
+    }
+
+    if(e.y + e.height > o.y + o.height)
+    {
+        y_overlap = o.y + o.height - e.y;
+    }
+    else
+    {
+        y_overlap = e.y + e.height - o.y;
+    }
+
+    if(x_overlap > y_overlap)
+    {
+        e.y -= delta_y;
+    }
+    else if(y_overlap > x_overlap)
+    {
+        e.x -= delta_x;
+    }
+    else
+    {
+        e.y -= delta_y;
+        e.x -= delta_x;
+    }
 }
