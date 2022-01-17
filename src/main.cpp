@@ -11,7 +11,7 @@ const int MAX_NUM_COLLECTIBLES = 20;
 const int MAX_NUM_LEVELS = 20;
 const int MAX_NUM_EXITS = 10;
 const int MS_PER_FRAME = 16;
-const int MAX_NUM_LEVEL_TRANSITION_FRAMES = 10;
+const int MAX_NUM_LEVEL_TRANSITION_FRAMES = 30;
 
 std::string Window_Title = "Roo's Adventure";
 
@@ -29,6 +29,10 @@ char White_Lamb_Texture_Filename[] = "assets/white_lamb.png\0";
 char Living_Room_Level_Background_Texture_Filename[] = "assets/living_room_level_background.png\0";
 char Hallway_Level_Background_Texture_Filename[] = "assets/hallway_background.png\0";
 char Hallway_Stairs_Texture_Filename[] = "assets/hallway_stairs.png\0";
+char Outside_Level_Background_Texture_Filename[] = "assets/outside_background.png\0";
+char Office_Level_Background_Texture_Filename[] = "assets/office_background.png\0";
+char Bedroom_Level_Background_Texture_Filename[] = "assets/bedroom_background.png\0";
+char Loft_Level_Background_Texture_Filename[] = "assets/loft_background.png\0";
 
 SDL_Renderer *renderer;
 SDL_Window* window;
@@ -142,11 +146,19 @@ int main(int argv, char** args)
     Level bottom_kitchen_level;
     Level living_room_level;
     Level hallway_level;
+    Level outside_level;
+    Level office_level;
+    Level bedroom_level;
+    Level loft_level;
     Entity player;
     memset(&kitchen_level, 0, sizeof(Level));
     memset(&bottom_kitchen_level, 0, sizeof(Level));
     memset(&living_room_level, 0, sizeof(Level));
     memset(&hallway_level, 0, sizeof(Level));
+    memset(&outside_level, 0, sizeof(Level));
+    memset(&office_level, 0, sizeof(Level));
+    memset(&bedroom_level, 0, sizeof(Level));
+    memset(&loft_level, 0, sizeof(Level));
     memset(&player, 0, sizeof(Entity));
 
     player.width = 100;
@@ -180,9 +192,11 @@ int main(int argv, char** args)
     bottom_kitchen_level.post_character_draw_obstacles[0] = { 600.0, 210.0, 200, 90, 0, -210, loadTexture(Stairs_Texture_Filename) };
     bottom_kitchen_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
     bottom_kitchen_level.y_init = SCREEN_HEIGHT - player.height;
-    bottom_kitchen_level.num_exits = 2;
+    bottom_kitchen_level.num_exits = 4;
     bottom_kitchen_level.exits[0] = { 0.0, SCREEN_HEIGHT + player.height / 2, 800, 100, 0, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height };
     bottom_kitchen_level.exits[1] = { SCREEN_WIDTH + player.width / 2, 100, 100, 110, 3, SCREEN_WIDTH - player.width, 100 };
+    bottom_kitchen_level.exits[2] = { 90.0, -(player.height + player.height / 2), 120, 100, 4, 100, 0 };
+    bottom_kitchen_level.exits[3] = { 490.0, -(player.height + player.height / 2), 120, 100, 5, 500, 0 };
 
     living_room_level.background_texture = loadTexture(Living_Room_Level_Background_Texture_Filename);
     living_room_level.num_pre_character_draw_obstacles = 4;
@@ -205,8 +219,43 @@ int main(int argv, char** args)
     hallway_level.post_character_draw_obstacles[0] = {0.0, 300.0, 450, 100, 0, -200, loadTexture(Hallway_Stairs_Texture_Filename) };
     hallway_level.x_init = 450;
     hallway_level.y_init = 125;
-    hallway_level.num_exits = 1;
-    hallway_level.exits[0] = { 350, 125, 100, 175, 1 , 450, 125};
+    hallway_level.num_exits = 2;
+    hallway_level.exits[0] = { 300, 125, 100, 175, 1 , 450, 125};
+    hallway_level.exits[1] = { 590, -150, 120, 100, 6 , 600, 0};
+    
+    outside_level.background_texture = loadTexture(Outside_Level_Background_Texture_Filename);
+    outside_level.num_pre_character_draw_obstacles = 3;
+    outside_level.pre_character_draw_obstacles[0] = {-100, 0.0, 100, 600, 0, 0, NULL };
+    outside_level.pre_character_draw_obstacles[1] = {0.0, 0.0, 800, 100, 0, 0, NULL };
+    outside_level.pre_character_draw_obstacles[2] = {800.0, 0.0, 100, 600, 0, 0, NULL };
+    outside_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
+    outside_level.y_init = SCREEN_HEIGHT - player.height;
+    outside_level.num_exits = 1;
+    outside_level.exits[0] = { 0, SCREEN_HEIGHT + player.height / 2, 800, 100, 1 , SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+
+    office_level.background_texture = loadTexture(Office_Level_Background_Texture_Filename);
+    office_level.num_pre_character_draw_obstacles = 4;
+    office_level.pre_character_draw_obstacles[0] = {-100, 0.0, 100, 600, 0, 0, NULL };
+    office_level.pre_character_draw_obstacles[1] = {0.0, 0.0, 800, 100, 0, 0, NULL };
+    office_level.pre_character_draw_obstacles[2] = {800.0, 0.0, 100, 600, 0, 0, NULL };
+    office_level.pre_character_draw_obstacles[3] = {300.0, 100.0, 200, 100, 0, 0, NULL };
+    office_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
+    office_level.y_init = SCREEN_HEIGHT - player.height;
+    office_level.num_exits = 1;
+    office_level.exits[0] = { 0, SCREEN_HEIGHT + player.height / 2, 800, 100, 1 , SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+
+    bedroom_level.background_texture = loadTexture(Bedroom_Level_Background_Texture_Filename);
+    bedroom_level.num_pre_character_draw_obstacles = 4;
+    bedroom_level.pre_character_draw_obstacles[0] = {-100, 0.0, 100, 600, 0, 0, NULL };
+    bedroom_level.pre_character_draw_obstacles[1] = {0.0, 0.0, 800, 200, 0, 0, NULL };
+    bedroom_level.pre_character_draw_obstacles[2] = {800.0, 0.0, 100, 600, 0, 0, NULL };
+    bedroom_level.pre_character_draw_obstacles[3] = {200.0, 200.0, 400, 200, 0, 0, NULL };
+    bedroom_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
+    bedroom_level.y_init = SCREEN_HEIGHT - player.height;
+    bedroom_level.num_exits = 1;
+    bedroom_level.exits[0] = { 0, SCREEN_HEIGHT + player.height / 2, 800, 100, 3, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+
+    
 
     int current_level_index = 0;
     Level levels[MAX_NUM_LEVELS];
@@ -214,6 +263,9 @@ int main(int argv, char** args)
     levels[1] = bottom_kitchen_level;
     levels[2] = living_room_level;
     levels[3] = hallway_level;
+    levels[4] = outside_level;
+    levels[5] = office_level;
+    levels[6] = bedroom_level;
 
     player.x = levels[current_level_index].x_init;
     player.y = levels[current_level_index].y_init;
@@ -246,164 +298,184 @@ int main(int argv, char** args)
         float delta_time = (current_time - prev_time) * 1e-3;
         prev_time = current_time;
 
-        handleInput();
-
-        updatePlayer(player);
-
-        Animation* animation = &player.animations[player.current_animation_index];
-
-        if(animation->num_textures > 1)
+        if(level_transition_counter > 0)
         {
-            player.current_texture = animation->textures[animation->current_texture_index];
-            if((animation->animation_counter++ % animation->animation_speed) == 0)
-            {
-                animation->current_texture_index = (animation->current_texture_index + 1) % animation->num_textures;
-            }
+            // Clear scene
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            SDL_RenderClear(renderer);
+            level_transition_counter--;
         }
         else
         {
-            player.current_texture = animation->textures[animation->current_texture_index];
-        }
+            handleInput();
+            updatePlayer(player);
 
-        Level& level = levels[current_level_index];
+            Animation* animation = &player.animations[player.current_animation_index];
 
-        // Check collision
-        float x_min_time = 1;
-        float y_min_time = 1;
-        for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
-        {
-            bool collision = checkCollision(player, level.pre_character_draw_obstacles[i], delta_time);
-            if(collision)
+            if(animation->num_textures > 1)
             {
-                float dx = 0;
-                float dy = 0;
-                float x_time, y_time;
-                calculateDistance(player, level.pre_character_draw_obstacles[i], dx, dy);
-                calculateTimeToCollide(player.x_vel, player.y_vel, dx, dy, x_time, y_time);
-                if(x_time < x_min_time)
+                player.current_texture = animation->textures[animation->current_texture_index];
+                if((animation->animation_counter++ % animation->animation_speed) == 0)
                 {
-                    x_min_time = x_time;
-                }
-                if(y_time < y_min_time)
-                {
-                    y_min_time = y_time;
+                    animation->current_texture_index = (animation->current_texture_index + 1) % animation->num_textures;
                 }
             }
-        }
-        for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
-        {
-            bool collision = checkCollision(player, level.post_character_draw_obstacles[i], delta_time);
-            if(collision)
+            else
             {
-                float dx = 0;
-                float dy = 0;
-                float x_time, y_time;
-                calculateDistance(player, level.post_character_draw_obstacles[i], dx, dy);
-                calculateTimeToCollide(player.x_vel, player.y_vel, dx, dy, x_time, y_time);
-                if(x_time < x_min_time)
-                {
-                    x_min_time = x_time;
-                }
-                if(y_time < y_min_time)
-                {
-                    y_min_time = y_time;
-                }
+                player.current_texture = animation->textures[animation->current_texture_index];
             }
-        }
-        float min_time = x_min_time;
-        if(y_min_time < x_min_time)
-        {
-            min_time = y_min_time;
-        }
-        float prev_x = player.x;
-        float prev_y = player.y;
-        player.x += player.x_vel * delta_time * min_time;
-        player.y += player.y_vel * delta_time * min_time;
+            
+            Level& level = levels[current_level_index];
 
-        // Check collectible collision
-        for(int i = 0; i < level.num_collectibles; i++)
-        {
-            if(!level.collectibles[i].collected)
+            // Check collision
+            float x_min_time = 1;
+            float y_min_time = 1;
+            for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
             {
-                bool collision = checkCollision(player, level.collectibles[i]);
+                bool collision = checkCollision(player, level.pre_character_draw_obstacles[i], delta_time);
                 if(collision)
                 {
-                    level.collectibles[i].collected = true;
-                    level.num_collectibles -= 1;
+                    float dx = 0;
+                    float dy = 0;
+                    float x_time, y_time;
+                    calculateDistance(player, level.pre_character_draw_obstacles[i], dx, dy);
+                    calculateTimeToCollide(player.x_vel, player.y_vel, dx, dy, x_time, y_time);
+                    if(x_time < x_min_time)
+                    {
+                        x_min_time = x_time;
+                    }
+                    if(y_time < y_min_time)
+                    {
+                        y_min_time = y_time;
+                    }
                 }
             }
-        }
-        
-        // Check for collision with exits
-        for(int i = 0; i < level.num_exits; i++)
-        {
-            bool collision = checkCollision(player, level.exits[i]);
-            if(collision)
+            for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
             {
-                current_level_index = level.exits[i].next_level_index;
-                level.x_init = level.exits[i].x_reentry;
-                level.y_init = level.exits[i].y_reentry;
-                player.x = levels[level.exits[i].next_level_index].x_init;
-                player.y = levels[level.exits[i].next_level_index].y_init;
-                if(player.x < 0)
+                bool collision = checkCollision(player, level.post_character_draw_obstacles[i], delta_time);
+                if(collision)
                 {
-                    player.x = 0;
+                    float dx = 0;
+                    float dy = 0;
+                    float x_time, y_time;
+                    calculateDistance(player, level.post_character_draw_obstacles[i], dx, dy);
+                    calculateTimeToCollide(player.x_vel, player.y_vel, dx, dy, x_time, y_time);
+                    if(x_time < x_min_time)
+                    {
+                        x_min_time = x_time;
+                    }
+                    if(y_time < y_min_time)
+                    {
+                        y_min_time = y_time;
+                    }
                 }
-                else if(player.x + player.width > SCREEN_WIDTH)
-                {
-                    player.x = SCREEN_WIDTH - player.width;
-                }
-                if(player.y < 0)
-                {
-                    player.y = 0;
-                }
-                else if(player.y + player.height > SCREEN_HEIGHT)
-                {
-                    player.y = SCREEN_HEIGHT - player.height;
-                }
-                break;
             }
-        }
-
-        // Clear scene
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        SDL_RenderClear(renderer);
-
-        // Draw level background if available
-        if(level.background_texture != NULL)
-        {
-            blit(level.background_texture, 0, 0, 0, 0);
-        }
-
-        // Draw obstacles before character
-        for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
-        {
-            Obstacle o = level.pre_character_draw_obstacles[i];
-            if(o.texture != NULL)
+            float min_time = x_min_time;
+            if(y_min_time < x_min_time)
             {
-                blit(o.texture, o.x, o.y, o.texture_x_offset, o.texture_y_offset);
+                min_time = y_min_time;
             }
-        }
+            float prev_x = player.x;
+            float prev_y = player.y;
+            player.x += player.x_vel * delta_time * min_time;
+            player.y += player.y_vel * delta_time * min_time;
 
-        // Draw collectibles before character
-        for(int i = 0; i < level.num_collectibles; i++)
-        {
-            if(!level.collectibles[i].collected)
+            // Check collectible collision
+            for(int i = 0; i < level.num_collectibles; i++)
             {
-                blit(level.collectibles[i].texture, level.collectibles[i].x, level.collectibles[i].y, level.collectibles[i].texture_x_offset, level.collectibles[i].texture_y_offset);
+                if(!level.collectibles[i].collected)
+                {
+                    bool collision = checkCollision(player, level.collectibles[i]);
+                    if(collision)
+                    {
+                        level.collectibles[i].collected = true;
+                        level.num_collectibles -= 1;
+                    }
+                }
             }
-        }
-
-        // Draw character
-        blit(player.current_texture, player.x, player.y, player.facing_right);
-
-        // Draw obstacles after character
-        for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
-        {
-            Obstacle o = level.post_character_draw_obstacles[i];
-            if(o.texture != NULL)
+            
+            // Check for collision with exits
+            for(int i = 0; i < level.num_exits; i++)
             {
-                blit(o.texture, o.x, o.y, o.texture_x_offset, o.texture_y_offset);
+                bool collision = checkCollision(player, level.exits[i]);
+                if(collision)
+                {
+                    current_level_index = level.exits[i].next_level_index;
+                    level.x_init = level.exits[i].x_reentry;
+                    level.y_init = level.exits[i].y_reentry;
+                    player.x = levels[level.exits[i].next_level_index].x_init;
+                    player.y = levels[level.exits[i].next_level_index].y_init;
+                    if(player.x < 0)
+                    {
+                        player.x = 0;
+                    }
+                    else if(player.x + player.width > SCREEN_WIDTH)
+                    {
+                        player.x = SCREEN_WIDTH - player.width;
+                    }
+                    if(player.y < 0)
+                    {
+                        player.y = 0;
+                    }
+                    else if(player.y + player.height > SCREEN_HEIGHT)
+                    {
+                        player.y = SCREEN_HEIGHT - player.height;
+                    }
+
+                    level_transition_counter = MAX_NUM_LEVEL_TRANSITION_FRAMES;
+                    break;
+                }
+            }
+            
+            if(level_transition_counter > 0)
+            {
+                // Clear scene
+                SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+                SDL_RenderClear(renderer);
+            }
+            else
+            {
+                // Clear scene
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+                SDL_RenderClear(renderer);
+
+                // Draw level background if available
+                if(level.background_texture != NULL)
+                {
+                    blit(level.background_texture, 0, 0, 0, 0);
+                }
+
+                // Draw obstacles before character
+                for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
+                {
+                    Obstacle o = level.pre_character_draw_obstacles[i];
+                    if(o.texture != NULL)
+                    {
+                        blit(o.texture, o.x, o.y, o.texture_x_offset, o.texture_y_offset);
+                    }
+                }
+
+                // Draw collectibles before character
+                for(int i = 0; i < level.num_collectibles; i++)
+                {
+                    if(!level.collectibles[i].collected)
+                    {
+                        blit(level.collectibles[i].texture, level.collectibles[i].x, level.collectibles[i].y, level.collectibles[i].texture_x_offset, level.collectibles[i].texture_y_offset);
+                    }
+                }
+
+                // Draw character
+                blit(player.current_texture, player.x, player.y, player.facing_right);
+
+                // Draw obstacles after character
+                for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
+                {
+                    Obstacle o = level.post_character_draw_obstacles[i];
+                    if(o.texture != NULL)
+                    {
+                        blit(o.texture, o.x, o.y, o.texture_x_offset, o.texture_y_offset);
+                    }
+                }
             }
         }
         
@@ -593,20 +665,20 @@ bool checkCollision(Entity e, Obstacle o, float delta_time)
 
 void calculateDistance(Entity e, Obstacle o, float& dx, float& dy)
 {
-    if(e.x < o.x && e.x_vel > 0)
+    if(e.x < o.x)
     {
         dx = o.x - (e.x + e.width);
     }
-    else if(e.x > o.x && e.x_vel < 0)
+    else if(e.x > o.x)
     {
         dx = e.x - (o.x + o.width);
     }
 
-    if(e.y < o.y && e.y_vel > 0)
+    if(e.y < o.y)
     {
         dy = o.y - (e.y + e.height);
     }
-    else if(e.y > o.y && e.y_vel < 0)
+    else if(e.y > o.y)
     {
         dy = e.y - (o.y + o.height);
     }
