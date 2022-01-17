@@ -2,6 +2,7 @@
 #include <SDL2/SDL_image.h>
 #include <iostream>
 #include <map>
+#include <limits>
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
@@ -10,6 +11,7 @@ const int MAX_NUM_COLLECTIBLES = 20;
 const int MAX_NUM_LEVELS = 20;
 const int MAX_NUM_EXITS = 10;
 const int MS_PER_FRAME = 16;
+const int MAX_NUM_LEVEL_TRANSITION_FRAMES = 10;
 
 std::string Window_Title = "Roo's Adventure";
 
@@ -17,11 +19,16 @@ char Standing_Texture_Filename[] = "assets/roo_standing.png\0";
 char Walking_Texture_Filename_1[] = "assets/roo_walking_1.png\0";
 char Walking_Texture_Filename_2[] = "assets/roo_walking_2.png\0";
 char Idle_Texture_Filename[] = "assets/roo_sitting.png\0";
+char Kitchen_Level_Background_Texture_Filename[] = "assets/kitchen_background.png\0";
+char Bottom_Kitchen_Level_Background_Texture_Filename[] = "assets/bottom_kitchen_background.png\0";
+char Stairs_Texture_Filename[] = "assets/stairs.png\0";
 char Left_Counter_Texture_Filename[] = "assets/left_counter.png\0";
 char Back_Counter_Texture_Filename[] = "assets/back_counter.png\0";
 char Middle_Counter_Texture_Filename[] = "assets/middle_counter.png\0";
 char White_Lamb_Texture_Filename[] = "assets/white_lamb.png\0";
 char Living_Room_Level_Background_Texture_Filename[] = "assets/living_room_level_background.png\0";
+char Hallway_Level_Background_Texture_Filename[] = "assets/hallway_background.png\0";
+char Hallway_Stairs_Texture_Filename[] = "assets/hallway_stairs.png\0";
 
 SDL_Renderer *renderer;
 SDL_Window* window;
@@ -53,8 +60,8 @@ struct Entity
     int width;
     int height;
     float speed;
-    float dx;
-    float dy;
+    float x_vel;
+    float y_vel;
     int current_animation_index;
     Animation animations[10];
     SDL_Texture* current_texture; 
@@ -71,6 +78,8 @@ struct Collectible
     int height;
     bool collected;
     SDL_Texture* texture;
+    float texture_x_offset;
+    float texture_y_offset;
 };
 
 struct Exit
@@ -80,6 +89,8 @@ struct Exit
     int width;
     int height;
     int next_level_index;
+    int x_reentry;
+    int y_reentry;
 };
 
 struct Level
@@ -105,29 +116,37 @@ typedef struct Level Level;
 
 std::map<SDL_Scancode, bool> key_map;
 
+bool isRunning = true;
+
 SDL_Texture* loadTexture(char* filename);
+void handleInput();
+void updatePlayer(Entity& p);
 void blit(SDL_Texture* texture, int x, int y, int x_offset, int y_offset);
 void blit(SDL_Texture* texture, int x, int y, bool facing_right);
-bool checkXCollision(Entity e, Obstacle o);
-bool checkYCollision(Entity e, Obstacle o);
-void resolveCollision(Entity& E, Obstacle o, float delta_x, float delta_y);
+bool checkCollision(Entity e, Obstacle o, float delta_time);
+void calculateDistance(Entity e, Obstacle o, float& dx, float& dy);
+void calculateTimeToCollide(float x_vel, float y_vel, float dx, float dy, float& x_time, float& y_time);
 bool checkCollision(Entity e, Collectible c);
 bool checkCollision(Entity en, Exit ex);
 
 int main(int argv, char** args)
 {
-	SDL_Init(SDL_INIT_EVERYTHING);
+    SDL_Init(SDL_INIT_EVERYTHING);
 
-	window = SDL_CreateWindow(Window_Title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
-	renderer = SDL_CreateRenderer(window, -1, 0);
+    window = SDL_CreateWindow(Window_Title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
+    renderer = SDL_CreateRenderer(window, -1, 0);
 
     IMG_Init(IMG_INIT_PNG);
 
     Level kitchen_level;
+    Level bottom_kitchen_level;
     Level living_room_level;
+    Level hallway_level;
     Entity player;
     memset(&kitchen_level, 0, sizeof(Level));
+    memset(&bottom_kitchen_level, 0, sizeof(Level));
     memset(&living_room_level, 0, sizeof(Level));
+    memset(&hallway_level, 0, sizeof(Level));
     memset(&player, 0, sizeof(Entity));
 
     player.width = 100;
@@ -135,19 +154,35 @@ int main(int argv, char** args)
     player.speed = 200;
     player.idle_threshold = 200;
 
-    kitchen_level.background_texture = NULL;
+    kitchen_level.background_texture = loadTexture(Kitchen_Level_Background_Texture_Filename);
     kitchen_level.num_pre_character_draw_obstacles = 3;
     kitchen_level.num_post_character_draw_obstacles = 1;
     kitchen_level.pre_character_draw_obstacles[0] = { 0.0, 0.0, 100, 350, 0, 0, loadTexture(Left_Counter_Texture_Filename) };
-    kitchen_level.pre_character_draw_obstacles[1] = { 100, 0.0, 700, 200, 0, 0, loadTexture(Back_Counter_Texture_Filename) };
-    kitchen_level.pre_character_draw_obstacles[2] = { 0.0, 600.0, 800, 100, 0, 0, NULL };
+    kitchen_level.pre_character_draw_obstacles[1] = { 100.0, 0.0, 700, 200, 0, 0, loadTexture(Back_Counter_Texture_Filename) };
+    kitchen_level.pre_character_draw_obstacles[2] = { 800.0, 0.0, 100, 600, 0, 0, NULL };
     kitchen_level.post_character_draw_obstacles[0] = { 300.0, 310.0, 300, 180, 0, -100, loadTexture(Middle_Counter_Texture_Filename) };
-    kitchen_level.x_init = 0; // SCREEN_WIDTH / 2 - player.width / 2;
-    kitchen_level.y_init = 400;// SCREEN_HEIGHT / 2 - player.height / 2;
+    kitchen_level.x_init = 0;
+    kitchen_level.y_init = 400;
     kitchen_level.num_collectibles = 1;
-    kitchen_level.collectibles[0] = { 400, SCREEN_HEIGHT - 100, 100, 100, false, loadTexture(White_Lamb_Texture_Filename) };
-    kitchen_level.num_exits = 1;
-    kitchen_level.exits[0] = { -(100 + (float)player.width / 2), 400, 100, 200, 1 };
+    kitchen_level.collectibles[0] = { 400, SCREEN_HEIGHT - 100, 100, 100, false, loadTexture(White_Lamb_Texture_Filename), 0, 0};
+    kitchen_level.num_exits = 2;
+    kitchen_level.exits[0] = { -(100 + (float)player.width / 2), 400, 100, 200, 2 , 0, 400};
+    kitchen_level.exits[1] = { 0.0, (float)SCREEN_HEIGHT + player.height / 2, 800, 100, 1, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height };
+
+    bottom_kitchen_level.background_texture = loadTexture(Bottom_Kitchen_Level_Background_Texture_Filename);
+    bottom_kitchen_level.num_pre_character_draw_obstacles = 5;
+    bottom_kitchen_level.num_post_character_draw_obstacles = 1;
+    bottom_kitchen_level.pre_character_draw_obstacles[0] = { -100.0, 0.0, 100, 600, 0, 0, NULL };
+    bottom_kitchen_level.pre_character_draw_obstacles[1] = { 0.0, 0.0, 90, 100, 0, 0, NULL };
+    bottom_kitchen_level.pre_character_draw_obstacles[2] = { 210.0, 0.0, 280, 100, 0, 0, NULL };
+    bottom_kitchen_level.pre_character_draw_obstacles[3] = { 610.0, 0.0, 190, 100, 0, 0, NULL };
+    bottom_kitchen_level.pre_character_draw_obstacles[4] = { 800.0, 300.0, 100, 300, 0, 0, NULL };
+    bottom_kitchen_level.post_character_draw_obstacles[0] = { 600.0, 210.0, 200, 90, 0, -210, loadTexture(Stairs_Texture_Filename) };
+    bottom_kitchen_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
+    bottom_kitchen_level.y_init = SCREEN_HEIGHT - player.height;
+    bottom_kitchen_level.num_exits = 2;
+    bottom_kitchen_level.exits[0] = { 0.0, SCREEN_HEIGHT + player.height / 2, 800, 100, 0, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height };
+    bottom_kitchen_level.exits[1] = { SCREEN_WIDTH + player.width / 2, 100, 100, 110, 3, SCREEN_WIDTH - player.width, 100 };
 
     living_room_level.background_texture = loadTexture(Living_Room_Level_Background_Texture_Filename);
     living_room_level.num_pre_character_draw_obstacles = 4;
@@ -158,12 +193,27 @@ int main(int argv, char** args)
     living_room_level.x_init = 0;
     living_room_level.y_init = 400;
     living_room_level.num_exits = 1;
-    living_room_level.exits[0] = { -(100 + (float)player.width / 2), 335, 100, 265, 0 };
+    living_room_level.exits[0] = { -(100 + (float)player.width / 2), 335, 100, 265, 0 , 0, 400};
+    
+    hallway_level.background_texture = loadTexture(Hallway_Level_Background_Texture_Filename);
+    hallway_level.num_pre_character_draw_obstacles = 4;
+    hallway_level.num_post_character_draw_obstacles = 1;
+    hallway_level.pre_character_draw_obstacles[0] = {0.0, 0.0, 590, 125, 0, 0, NULL };
+    hallway_level.pre_character_draw_obstacles[1] = {710.0, 0.0, 90, 125, 0, 0, NULL };
+    hallway_level.pre_character_draw_obstacles[2] = {800, 100.0, 100, 500, 0, 0, NULL };
+    hallway_level.pre_character_draw_obstacles[3] = {0.0, 600.0, 800, 100, 0, 0, NULL };
+    hallway_level.post_character_draw_obstacles[0] = {0.0, 300.0, 450, 100, 0, -200, loadTexture(Hallway_Stairs_Texture_Filename) };
+    hallway_level.x_init = 450;
+    hallway_level.y_init = 125;
+    hallway_level.num_exits = 1;
+    hallway_level.exits[0] = { 350, 125, 100, 175, 1 , 450, 125};
 
     int current_level_index = 0;
     Level levels[MAX_NUM_LEVELS];
     levels[0] = kitchen_level;
-    levels[1] = living_room_level;
+    levels[1] = bottom_kitchen_level;
+    levels[2] = living_room_level;
+    levels[3] = hallway_level;
 
     player.x = levels[current_level_index].x_init;
     player.y = levels[current_level_index].y_init;
@@ -186,105 +236,19 @@ int main(int argv, char** args)
     key_map[SDL_SCANCODE_LEFT] = false;
     key_map[SDL_SCANCODE_RIGHT] = false;
 
-	bool isRunning = true;
-	SDL_Event event;
     int num_frames = 0;
     int prev_time = 0;
+    int level_transition_counter = 0;
 
-	while (isRunning)
-	{
-		while (SDL_PollEvent(&event))
-		{
-			switch (event.type)
-			{
-			case SDL_QUIT:
-				isRunning = false;
-				break;
-			case SDL_KEYDOWN:
-				if (event.key.keysym.sym == SDLK_ESCAPE)
-				{
-					isRunning = false;
-				}
-                else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_UP)
-                {
-                    key_map[event.key.keysym.scancode] = true;
-                }
-                else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_DOWN)
-                {
-                    key_map[event.key.keysym.scancode] = true;
-                }
-                else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_LEFT)
-                {
-                    key_map[event.key.keysym.scancode] = true;
-                }
-                else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_RIGHT)
-                {
-                    key_map[event.key.keysym.scancode] = true;                    
-                }
-                break;
-            
-            case SDL_KEYUP:
-                if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_UP)
-                {
-                    key_map[event.key.keysym.scancode] = false;
-                }
-                else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_DOWN)
-                {
-                    key_map[event.key.keysym.scancode] = false;                    
-                }
-                else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_LEFT)
-                {
-                    key_map[event.key.keysym.scancode] = false;                    
-                }
-                else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_RIGHT)
-                {
-                    key_map[event.key.keysym.scancode] = false;                    
-                }
-                break;
-			}
-		}
+    while (isRunning)
+    {
+        int current_time = SDL_GetTicks();
+        float delta_time = (current_time - prev_time) * 1e-3;
+        prev_time = current_time;
 
-        if((!key_map[SDL_SCANCODE_UP] && !key_map[SDL_SCANCODE_DOWN]) || (key_map[SDL_SCANCODE_UP] && key_map[SDL_SCANCODE_DOWN]))
-        {
-            player.dy = 0;
-        }
-        else if(key_map[SDL_SCANCODE_UP])
-        {
-            player.dy = -player.speed;
-        }
-        else if(key_map[SDL_SCANCODE_DOWN])
-        {
-            player.dy = player.speed;
-        }
-        if((!key_map[SDL_SCANCODE_LEFT] && !key_map[SDL_SCANCODE_RIGHT]) || (key_map[SDL_SCANCODE_LEFT] && key_map[SDL_SCANCODE_RIGHT]))
-        {
-            player.dx = 0;
-        }
-        else if(key_map[SDL_SCANCODE_LEFT])
-        {
-            player.dx = -player.speed;
-            player.facing_right = false;
-        }
-        else if(key_map[SDL_SCANCODE_RIGHT])
-        {
-            player.dx = player.speed;
-            player.facing_right = true;
-        }
+        handleInput();
 
-        if(player.dx != 0 || player.dy != 0)
-        {
-            player.current_animation_index = 1;
-            player.idle_counter = 0;
-        }
-        else if(player.idle_counter < player.idle_threshold)
-        {
-            player.current_animation_index = 0;
-            player.idle_counter++;
-        }
-        else
-        {
-            player.current_animation_index = 2;
-        }
+        updatePlayer(player);
 
         Animation* animation = &player.animations[player.current_animation_index];
 
@@ -299,45 +263,62 @@ int main(int argv, char** args)
         else
         {
             player.current_texture = animation->textures[animation->current_texture_index];
-        }        
-
-        int current_time = SDL_GetTicks();
-        float delta_time = (current_time - prev_time) * 1e-3;
-        prev_time = current_time;
+        }
 
         Level& level = levels[current_level_index];
-        
-        // Move character
-        player.x += player.dx * delta_time;
-        player.y += player.dy * delta_time;
 
         // Check collision
-        bool x_collision = false;
-        bool y_collision = false;
+        float x_min_time = 1;
+        float y_min_time = 1;
         for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
         {
-            x_collision = checkXCollision(player, level.pre_character_draw_obstacles[i]);
-            y_collision = checkYCollision(player, level.pre_character_draw_obstacles[i]);
-            if(x_collision && y_collision)
+            bool collision = checkCollision(player, level.pre_character_draw_obstacles[i], delta_time);
+            if(collision)
             {
-                resolveCollision(player, level.pre_character_draw_obstacles[i], player.dx * delta_time, player.dy * delta_time);
+                float dx = 0;
+                float dy = 0;
+                float x_time, y_time;
+                calculateDistance(player, level.pre_character_draw_obstacles[i], dx, dy);
+                calculateTimeToCollide(player.x_vel, player.y_vel, dx, dy, x_time, y_time);
+                if(x_time < x_min_time)
+                {
+                    x_min_time = x_time;
+                }
+                if(y_time < y_min_time)
+                {
+                    y_min_time = y_time;
+                }
             }
         }
         for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
         {
-            x_collision = checkXCollision(player, level.post_character_draw_obstacles[i]);
-            y_collision = checkYCollision(player, level.post_character_draw_obstacles[i]);
-            if(x_collision && y_collision)
+            bool collision = checkCollision(player, level.post_character_draw_obstacles[i], delta_time);
+            if(collision)
             {
-                resolveCollision(player, level.post_character_draw_obstacles[i], player.dx * delta_time, player.dy * delta_time);
+                float dx = 0;
+                float dy = 0;
+                float x_time, y_time;
+                calculateDistance(player, level.post_character_draw_obstacles[i], dx, dy);
+                calculateTimeToCollide(player.x_vel, player.y_vel, dx, dy, x_time, y_time);
+                if(x_time < x_min_time)
+                {
+                    x_min_time = x_time;
+                }
+                if(y_time < y_min_time)
+                {
+                    y_min_time = y_time;
+                }
             }
         }
-
-        // if(x_collision && y_collision)
-        // {
-        //     player.x -= player.dx * delta_time;
-        //     player.y -= player.dy * delta_time;
-        // }
+        float min_time = x_min_time;
+        if(y_min_time < x_min_time)
+        {
+            min_time = y_min_time;
+        }
+        float prev_x = player.x;
+        float prev_y = player.y;
+        player.x += player.x_vel * delta_time * min_time;
+        player.y += player.y_vel * delta_time * min_time;
 
         // Check collectible collision
         for(int i = 0; i < level.num_collectibles; i++)
@@ -360,14 +341,33 @@ int main(int argv, char** args)
             if(collision)
             {
                 current_level_index = level.exits[i].next_level_index;
-                player.x = level.x_init;
-                player.y = level.y_init;
+                level.x_init = level.exits[i].x_reentry;
+                level.y_init = level.exits[i].y_reentry;
+                player.x = levels[level.exits[i].next_level_index].x_init;
+                player.y = levels[level.exits[i].next_level_index].y_init;
+                if(player.x < 0)
+                {
+                    player.x = 0;
+                }
+                else if(player.x + player.width > SCREEN_WIDTH)
+                {
+                    player.x = SCREEN_WIDTH - player.width;
+                }
+                if(player.y < 0)
+                {
+                    player.y = 0;
+                }
+                else if(player.y + player.height > SCREEN_HEIGHT)
+                {
+                    player.y = SCREEN_HEIGHT - player.height;
+                }
+                break;
             }
         }
 
         // Clear scene
-		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-		SDL_RenderClear(renderer);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderClear(renderer);
 
         // Draw level background if available
         if(level.background_texture != NULL)
@@ -390,7 +390,7 @@ int main(int argv, char** args)
         {
             if(!level.collectibles[i].collected)
             {
-                blit(level.collectibles[i].texture, level.collectibles[i].x, level.collectibles[i].y, 0, 0);
+                blit(level.collectibles[i].texture, level.collectibles[i].x, level.collectibles[i].y, level.collectibles[i].texture_x_offset, level.collectibles[i].texture_y_offset);
             }
         }
 
@@ -408,7 +408,7 @@ int main(int argv, char** args)
         }
         
         // Present renderer
-		SDL_RenderPresent(renderer);
+        SDL_RenderPresent(renderer);
 
         // Calculate time to sleep and sleep if necessary
         int next_frame_time = num_frames++ * MS_PER_FRAME;
@@ -418,44 +418,144 @@ int main(int argv, char** args)
             int ms_to_sleep = next_frame_time - current_time;
             SDL_Delay(ms_to_sleep);
         }
-	}
+    }
 
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
-	SDL_Quit();
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
 
-	return 0;
+    return 0;
 }
 
 SDL_Texture *loadTexture(char *filename)
 {
-	SDL_Texture *texture;
+    SDL_Texture *texture;
 
-	SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, "Loading %s", filename);
+    SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, "Loading %s", filename);
 
-	texture = IMG_LoadTexture(renderer, filename);
+    texture = IMG_LoadTexture(renderer, filename);
 
-	return texture;
+    return texture;
+}
+
+void handleInput()
+{
+    SDL_Event event;
+    while (SDL_PollEvent(&event))
+    {
+        switch (event.type)
+        {
+        case SDL_QUIT:
+            isRunning = false;
+            break;
+        case SDL_KEYDOWN:
+            if (event.key.keysym.sym == SDLK_ESCAPE)
+            {
+                isRunning = false;
+            }
+            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_UP)
+            {
+                key_map[event.key.keysym.scancode] = true;
+            }
+            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_DOWN)
+            {
+                key_map[event.key.keysym.scancode] = true;
+            }
+            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_LEFT)
+            {
+                key_map[event.key.keysym.scancode] = true;
+            }
+            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_RIGHT)
+            {
+                key_map[event.key.keysym.scancode] = true;                    
+            }
+            break;
+        
+        case SDL_KEYUP:
+            if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_UP)
+            {
+                key_map[event.key.keysym.scancode] = false;
+            }
+            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_DOWN)
+            {
+                key_map[event.key.keysym.scancode] = false;                    
+            }
+            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_LEFT)
+            {
+                key_map[event.key.keysym.scancode] = false;                    
+            }
+            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_RIGHT)
+            {
+                key_map[event.key.keysym.scancode] = false;                    
+            }
+            break;
+        }
+    }
+}
+
+void updatePlayer(Entity& p)
+{        
+    if((!key_map[SDL_SCANCODE_UP] && !key_map[SDL_SCANCODE_DOWN]) || (key_map[SDL_SCANCODE_UP] && key_map[SDL_SCANCODE_DOWN]))
+    {
+        p.y_vel = 0;
+    }
+    else if(key_map[SDL_SCANCODE_UP])
+    {
+        p.y_vel = -p.speed;
+    }
+    else if(key_map[SDL_SCANCODE_DOWN])
+    {
+        p.y_vel = p.speed;
+    }
+    if((!key_map[SDL_SCANCODE_LEFT] && !key_map[SDL_SCANCODE_RIGHT]) || (key_map[SDL_SCANCODE_LEFT] && key_map[SDL_SCANCODE_RIGHT]))
+    {
+        p.x_vel = 0;
+    }
+    else if(key_map[SDL_SCANCODE_LEFT])
+    {
+        p.x_vel = -p.speed;
+        p.facing_right = false;
+    }
+    else if(key_map[SDL_SCANCODE_RIGHT])
+    {
+        p.x_vel = p.speed;
+        p.facing_right = true;
+    }
+
+    if(p.x_vel != 0 || p.y_vel != 0)
+    {
+        p.current_animation_index = 1;
+        p.idle_counter = 0;
+    }
+    else if(p.idle_counter < p.idle_threshold)
+    {
+        p.current_animation_index = 0;
+        p.idle_counter++;
+    }
+    else
+    {
+        p.current_animation_index = 2;
+    }
 }
 
 void blit(SDL_Texture *texture, int x, int y, int x_offset, int y_offset)
 {
-	SDL_Rect dest;
+    SDL_Rect dest;
 
-	dest.x = x + x_offset;
-	dest.y = y + y_offset;
+    dest.x = x + x_offset;
+    dest.y = y + y_offset;
 
-	SDL_QueryTexture(texture, NULL, NULL, &dest.w, &dest.h);
+    SDL_QueryTexture(texture, NULL, NULL, &dest.w, &dest.h);
 
-	SDL_RenderCopy(renderer, texture, NULL, &dest);
+    SDL_RenderCopy(renderer, texture, NULL, &dest);
 }
 
 void blit(SDL_Texture *texture, int x, int y, bool facing_right)
 {
-	SDL_Rect dest;
+    SDL_Rect dest;
 
-	dest.x = x;
-	dest.y = y;
+    dest.x = x;
+    dest.y = y;
 
     SDL_RendererFlip flip = SDL_FLIP_HORIZONTAL;
     if(facing_right)
@@ -463,21 +563,9 @@ void blit(SDL_Texture *texture, int x, int y, bool facing_right)
         flip = SDL_FLIP_NONE;
     }
 
-	SDL_QueryTexture(texture, NULL, NULL, &dest.w, &dest.h);
+    SDL_QueryTexture(texture, NULL, NULL, &dest.w, &dest.h);
 
-	SDL_RenderCopyEx(renderer, texture, NULL, &dest, 0, NULL, flip);
-}
-
-bool checkXCollision(Entity e, Obstacle o)
-{
-    bool x_collision = e.x + e.width >= o.x && o.x + o.width > e.x;
-    return x_collision;
-}
-
-bool checkYCollision(Entity e, Obstacle o)
-{
-    bool y_collision = e.y + e.height >= o.y && o.y + o.height > e.y;
-    return y_collision;
+    SDL_RenderCopyEx(renderer, texture, NULL, &dest, 0, NULL, flip);
 }
 
 bool checkCollision(Entity e, Collectible c)
@@ -496,41 +584,36 @@ bool checkCollision(Entity en, Exit ex)
     return x_collision && y_collision;
 }
 
-
-void resolveCollision(Entity& e, Obstacle o, float delta_x, float delta_y)
+bool checkCollision(Entity e, Obstacle o, float delta_time)
 {
-    float x_overlap = 0;
-    float y_overlap = 0;
+    float x_intended = e.x + e.x_vel * delta_time;
+    float y_intended = e.y + e.y_vel * delta_time;
+    return x_intended < o.x + o.width && x_intended + e.width > o.x && y_intended < o.y + o.height && y_intended + e.height > o.y;
+}
 
-    if(e.x + e.width > o.x + o.width)
+void calculateDistance(Entity e, Obstacle o, float& dx, float& dy)
+{
+    if(e.x < o.x && e.x_vel > 0)
     {
-        x_overlap = o.x + o.width - e.x;
+        dx = o.x - (e.x + e.width);
     }
-    else
+    else if(e.x > o.x && e.x_vel < 0)
     {
-        x_overlap = e.x + e.width - o.x;
-    }
-
-    if(e.y + e.height > o.y + o.height)
-    {
-        y_overlap = o.y + o.height - e.y;
-    }
-    else
-    {
-        y_overlap = e.y + e.height - o.y;
+        dx = e.x - (o.x + o.width);
     }
 
-    if(x_overlap > y_overlap)
+    if(e.y < o.y && e.y_vel > 0)
     {
-        e.y -= delta_y;
+        dy = o.y - (e.y + e.height);
     }
-    else if(y_overlap > x_overlap)
+    else if(e.y > o.y && e.y_vel < 0)
     {
-        e.x -= delta_x;
+        dy = e.y - (o.y + o.height);
     }
-    else
-    {
-        e.y -= delta_y;
-        e.x -= delta_x;
-    }
+}
+
+void calculateTimeToCollide(float x_vel, float y_vel, float dx, float dy, float& x_time, float& y_time)
+{
+    x_time = x_vel != 0 ? abs(dx / x_vel) : 0;
+    y_time = y_vel != 0 ? abs(dy / y_vel) : 0;
 }
