@@ -127,8 +127,12 @@ void handleInput();
 void updatePlayer(Entity& p);
 void blit(SDL_Texture* texture, int x, int y, int x_offset, int y_offset);
 void blit(SDL_Texture* texture, int x, int y, bool facing_right);
-bool checkCollision(Entity e, Obstacle o, float delta_time);
+bool checkXYCollision(Entity e, Obstacle o, float delta_time);
+bool checkXCollision(Entity e, Obstacle o, float delta_time);
+bool checkYCollision(Entity e, Obstacle o, float delta_time);
 void calculateDistance(Entity e, Obstacle o, float& dx, float& dy);
+float calculateXDistance(Entity e, Obstacle o);
+float calculateYDistance(Entity e, Obstacle o);
 void calculateTimeToCollide(float x_vel, float y_vel, float dx, float dy, float& x_time, float& y_time);
 bool checkCollision(Entity e, Collectible c);
 bool checkCollision(Entity en, Exit ex);
@@ -255,8 +259,6 @@ int main(int argv, char** args)
     bedroom_level.num_exits = 1;
     bedroom_level.exits[0] = { 0, SCREEN_HEIGHT + player.height / 2, 800, 100, 3, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
 
-    
-
     int current_level_index = 0;
     Level levels[MAX_NUM_LEVELS];
     levels[0] = kitchen_level;
@@ -330,55 +332,79 @@ int main(int argv, char** args)
             // Check collision
             float x_min_time = 1;
             float y_min_time = 1;
-            for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
+
+            // X Axis
+            if(player.x_vel != 0)
             {
-                bool collision = checkCollision(player, level.pre_character_draw_obstacles[i], delta_time);
-                if(collision)
+                for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
                 {
-                    float dx = 0;
-                    float dy = 0;
-                    float x_time, y_time;
-                    calculateDistance(player, level.pre_character_draw_obstacles[i], dx, dy);
-                    calculateTimeToCollide(player.x_vel, player.y_vel, dx, dy, x_time, y_time);
-                    if(x_time < x_min_time)
+                    bool x_collision = checkXCollision(player, level.pre_character_draw_obstacles[i], delta_time);
+                    if(x_collision)
                     {
-                        x_min_time = x_time;
-                    }
-                    if(y_time < y_min_time)
-                    {
-                        y_min_time = y_time;
+                        float dx = calculateXDistance(player, level.pre_character_draw_obstacles[i]);
+                        float x_time = abs(dx / player.x_vel);
+                        if(x_time < x_min_time)
+                        {
+                            x_min_time = x_time;
+                        }
                     }
                 }
-            }
-            for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
-            {
-                bool collision = checkCollision(player, level.post_character_draw_obstacles[i], delta_time);
-                if(collision)
+                for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
                 {
-                    float dx = 0;
-                    float dy = 0;
-                    float x_time, y_time;
-                    calculateDistance(player, level.post_character_draw_obstacles[i], dx, dy);
-                    calculateTimeToCollide(player.x_vel, player.y_vel, dx, dy, x_time, y_time);
-                    if(x_time < x_min_time)
+                    bool x_collision = checkXCollision(player, level.post_character_draw_obstacles[i], delta_time);
+                    if(x_collision)
                     {
-                        x_min_time = x_time;
-                    }
-                    if(y_time < y_min_time)
-                    {
-                        y_min_time = y_time;
+                        float dx = calculateXDistance(player, level.post_character_draw_obstacles[i]);
+                        float x_time = abs(dx / player.x_vel);
+                        if(x_time < x_min_time)
+                        {
+                            x_min_time = x_time;
+                        }
                     }
                 }
+
+                player.x += player.x_vel * delta_time * x_min_time;
             }
-            float min_time = x_min_time;
-            if(y_min_time < x_min_time)
+            if(player.y_vel != 0)
             {
-                min_time = y_min_time;
+                for(int i = 0; i < level.num_pre_character_draw_obstacles; i++)
+                {
+                    bool y_collision = checkYCollision(player, level.pre_character_draw_obstacles[i], delta_time);
+                    if(y_collision)
+                    {
+                        float dy = calculateYDistance(player, level.pre_character_draw_obstacles[i]);
+                        float y_time = abs(dy / player.y_vel);
+                        if(y_time < y_min_time)
+                        {
+                            y_min_time = y_time;
+                        }
+                    }
+                }
+                for(int i = 0; i < level.num_post_character_draw_obstacles; i++)
+                {
+                    bool y_collision = checkYCollision(player, level.post_character_draw_obstacles[i], delta_time);
+                    if(y_collision)
+                    {
+                        float dy = calculateYDistance(player, level.post_character_draw_obstacles[i]);
+                        float y_time = abs(dy / player.y_vel);
+                        if(y_time < y_min_time)
+                        {
+                            y_min_time = y_time;
+                        }
+                    }
+                }
+
+                player.y += player.y_vel * delta_time * y_min_time;
             }
-            float prev_x = player.x;
-            float prev_y = player.y;
-            player.x += player.x_vel * delta_time * min_time;
-            player.y += player.y_vel * delta_time * min_time;
+            // float min_time = x_min_time;
+            // if(y_min_time < x_min_time)
+            // {
+            //     min_time = y_min_time;
+            // }
+            // float prev_x = player.x;
+            // float prev_y = player.y;
+            // player.x += player.x_vel * delta_time * min_time;
+            // player.y += player.y_vel * delta_time * min_time;
 
             // Check collectible collision
             for(int i = 0; i < level.num_collectibles; i++)
@@ -656,11 +682,23 @@ bool checkCollision(Entity en, Exit ex)
     return x_collision && y_collision;
 }
 
-bool checkCollision(Entity e, Obstacle o, float delta_time)
+bool checkXYCollision(Entity e, Obstacle o, float delta_time)
 {
     float x_intended = e.x + e.x_vel * delta_time;
     float y_intended = e.y + e.y_vel * delta_time;
     return x_intended < o.x + o.width && x_intended + e.width > o.x && y_intended < o.y + o.height && y_intended + e.height > o.y;
+}
+
+bool checkXCollision(Entity e, Obstacle o, float delta_time)
+{
+    float x_intended = e.x + e.x_vel * delta_time;
+    return x_intended < o.x + o.width && x_intended + e.width > o.x && e.y < o.y + o.height && e.y + e.height > o.y;
+}
+
+bool checkYCollision(Entity e, Obstacle o, float delta_time)
+{
+    float y_intended = e.y + e.y_vel * delta_time;
+    return e.x < o.x + o.width && e.x + e.width > o.x && y_intended < o.y + o.height && y_intended + e.height > o.y;
 }
 
 void calculateDistance(Entity e, Obstacle o, float& dx, float& dy)
@@ -682,6 +720,34 @@ void calculateDistance(Entity e, Obstacle o, float& dx, float& dy)
     {
         dy = e.y - (o.y + o.height);
     }
+}
+
+float calculateXDistance(Entity e, Obstacle o)
+{
+    float dx = 0;
+    if(e.x < o.x)
+    {
+        dx = o.x - (e.x + e.width);
+    }
+    else if(e.x > o.x)
+    {
+        dx = e.x - (o.x + o.width);
+    }
+    return dx;
+}
+
+float calculateYDistance(Entity e, Obstacle o)
+{
+    float dy = 0;
+    if(e.y < o.y)
+    {
+        dy = o.y - (e.y + e.height);
+    }
+    else if(e.y > o.y)
+    {
+        dy = e.y - (o.y + o.height);
+    }
+    return dy;
 }
 
 void calculateTimeToCollide(float x_vel, float y_vel, float dx, float dy, float& x_time, float& y_time)
