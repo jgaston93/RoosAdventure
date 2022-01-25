@@ -126,10 +126,10 @@ struct Level
 
 struct OutsideLevelData
 {
-    int num_bushes;
-    int active_bush;
-    int active_bush_increment;
     int counter;
+    int num_bushes;
+    int bush_order[5];
+    int bush_index;
     int selected_bush;
     Animation bush_animation;
     SDL_Texture* bush_texture;
@@ -296,7 +296,12 @@ int main(int argv, char** args)
     outside_level.update_level = &update_outside; 
     OutsideLevelData outside_level_data;
     outside_level_data.num_bushes = 5;
-    outside_level_data.active_bush = 0;
+    outside_level_data.bush_order[0] = 0;
+    outside_level_data.bush_order[1] = 1;
+    outside_level_data.bush_order[2] = 2;
+    outside_level_data.bush_order[3] = 3;
+    outside_level_data.bush_order[4] = 4;
+    outside_level_data.bush_index = 0;
     outside_level_data.counter = 0;
     outside_level_data.selected_bush = 0;
     outside_level_data.complete = false;
@@ -839,9 +844,10 @@ void init_outside(Level* level, void* data)
     if(!outside_level_data->complete)
     {
         outside_level_data->counter = 0;
-        unsigned int ticks = SDL_GetTicks();
-        outside_level_data->active_bush = ticks % outside_level_data->num_bushes;
-        outside_level_data->active_bush_increment = ticks % outside_level_data->num_bushes;
+        outside_level_data->bush_index = 0;
+        // unsigned int ticks = SDL_GetTicks();
+        // outside_level_data->active_bush = ticks % outside_level_data->num_bushes;
+        // outside_level_data->active_bush_increment = ticks % outside_level_data->num_bushes;
     }
     else
     {
@@ -887,18 +893,15 @@ void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scanc
         {
             if(player->animation_counter > 1)
             {
-                if(outside_level_data->selected_bush == outside_level_data->active_bush)
+                if(outside_level_data->selected_bush == outside_level_data->bush_order[outside_level_data->bush_index])
                 {
-                    for(int i = 0; i < outside_level_data->num_bushes; i++)
-                    {
-                        level->pre_character_draw_obstacles[i + 3].texture = outside_level_data->dead_bush_texture_1;
-                    }
+                    level->pre_character_draw_obstacles[outside_level_data->bush_order[outside_level_data->bush_index] + 3].texture = outside_level_data->dead_bush_texture_1;
                 }
                 else
                 {
                     Animation* animation = &outside_level_data->bush_animation;
 
-                    level->pre_character_draw_obstacles[outside_level_data->active_bush + 3].texture = animation->textures[animation->current_texture_index];
+                    level->pre_character_draw_obstacles[outside_level_data->bush_order[outside_level_data->bush_index] + 3].texture = animation->textures[animation->current_texture_index];
                     
                     if((animation->animation_counter++ % animation->animation_speed) == 0)
                     {
@@ -908,15 +911,21 @@ void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scanc
             }
             else
             {
-                if(outside_level_data->selected_bush == outside_level_data->active_bush)
+                if(outside_level_data->selected_bush == outside_level_data->bush_order[outside_level_data->bush_index])
                 {
-                    outside_level_data->complete = true;
+                    outside_level_data->bush_index++;
+                    if(outside_level_data->bush_index == outside_level_data->num_bushes)
+                    {
+                        outside_level_data->complete = true;
+                    }
                 }
                 else
                 {
-                    level->pre_character_draw_obstacles[outside_level_data->active_bush + 3].texture = outside_level_data->bush_texture;
-                    outside_level_data->active_bush = (outside_level_data->active_bush + outside_level_data->active_bush_increment) % outside_level_data->num_bushes;
-                    level->pre_character_draw_obstacles[outside_level_data->selected_bush + 3].texture = outside_level_data->bush_texture;
+                    outside_level_data->bush_index = 0;
+                    for(int i = 0; i < outside_level_data->num_bushes; i++)
+                    {
+                        level->pre_character_draw_obstacles[i + 3].texture = outside_level_data->bush_texture;
+                    }
                 }
                 player->current_animation_index = 0;
             }
@@ -927,17 +936,32 @@ void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scanc
             bool in_range = false;
             for(int i = 0 ; i < outside_level_data->num_bushes; i++)
             {
-                Obstacle o = level->pre_character_draw_obstacles[i + 3];
-                o.y += 25;
-                bool collision = checkXYCollision(*player, o, 0.0);
-                if(collision)
+                bool check_for_collision = true;
+                if(outside_level_data->bush_index > 0)
                 {
-                    player->current_animation_index = 3;
-                    player->animation_counter = 60;
-                    player->x_vel = 0;
-                    player->y_vel = 0;
-                    outside_level_data->selected_bush = i;
-                    outside_level_data->bush_animation.animation_counter = 0;
+                    for(int j = 0; j < outside_level_data->bush_index; j++)
+                    {
+                        if(i == outside_level_data->bush_order[j])
+                        {
+                            check_for_collision = false;
+                            break;
+                        }
+                    }
+                }
+                if(check_for_collision)
+                {
+                    Obstacle o = level->pre_character_draw_obstacles[i + 3];
+                    o.y += 25;
+                    bool collision = checkXYCollision(*player, o, 0.0);
+                    if(collision)
+                    {
+                        player->current_animation_index = 3;
+                        player->animation_counter = 60;
+                        player->x_vel = 0;
+                        player->y_vel = 0;
+                        outside_level_data->selected_bush = i;
+                        outside_level_data->bush_animation.animation_counter = 0;
+                    }
                 }
             }
         }
