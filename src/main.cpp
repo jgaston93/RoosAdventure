@@ -18,12 +18,12 @@ std::string Window_Title = "Roo's Adventure";
 char Standing_Texture_Filename[] = "assets/roo_standing.png\0";
 char Walking_Texture_Filename_1[] = "assets/roo_walking_1.png\0";
 char Walking_Texture_Filename_2[] = "assets/roo_walking_2.png\0";
+char Peeing_Texture_Filename_1[] = "assets/roo_peeing_1.png\0";
+char Peeing_Texture_Filename_2[] = "assets/roo_peeing_2.png\0";
 char Idle_Texture_Filename[] = "assets/roo_sitting.png\0";
 char Kitchen_Level_Background_Texture_Filename[] = "assets/kitchen_background.png\0";
 char Bottom_Kitchen_Level_Background_Texture_Filename[] = "assets/bottom_kitchen_background.png\0";
 char Stairs_Texture_Filename[] = "assets/stairs.png\0";
-char Left_Counter_Texture_Filename[] = "assets/left_counter.png\0";
-char Back_Counter_Texture_Filename[] = "assets/back_counter.png\0";
 char Middle_Counter_Texture_Filename[] = "assets/middle_counter.png\0";
 char White_Lamb_Texture_Filename[] = "assets/white_lamb.png\0";
 char Living_Room_Level_Background_Texture_Filename[] = "assets/living_room_level_background.png\0";
@@ -33,9 +33,16 @@ char Outside_Level_Background_Texture_Filename[] = "assets/outside_background.pn
 char Office_Level_Background_Texture_Filename[] = "assets/office_background.png\0";
 char Bedroom_Level_Background_Texture_Filename[] = "assets/bedroom_background.png\0";
 char Loft_Level_Background_Texture_Filename[] = "assets/loft_background.png\0";
+char Bush_Texture_Filename[] = "assets/bush.png\0";
+char Angry_Bush_1_Texture_Filename[] = "assets/angry_bush_1.png\0";
+char Angry_Bush_2_Texture_Filename[] = "assets/angry_bush_2.png\0";
+char Angry_Bush_3_Texture_Filename[] = "assets/angry_bush_3.png\0";
 
 SDL_Renderer *renderer;
 SDL_Window* window;
+
+const int MAX_NUM_ANIMATIONS = 10;
+const int MAX_NUM_FRAMES_PER_ANIMATION = 10;
 
 struct Animation
 {
@@ -43,7 +50,7 @@ struct Animation
     int current_texture_index;
     int animation_speed;
     int animation_counter;
-    SDL_Texture* textures[10];
+    SDL_Texture* textures[MAX_NUM_FRAMES_PER_ANIMATION];
 };
 
 struct Obstacle
@@ -72,6 +79,7 @@ struct Entity
     bool facing_right;
     int idle_counter;
     int idle_threshold;
+    int animation_counter;
 };
 
 struct Collectible
@@ -110,6 +118,21 @@ struct Level
     Exit exits[MAX_NUM_EXITS];
     float x_init;
     float y_init;
+    void (*init_level)(Level*, void*);
+    void (*update_level)(Level*, void*, Entity*, std::map<SDL_Scancode, bool>);
+    void* level_data;
+};
+
+struct OutsideLevelData
+{
+    int num_bushes;
+    int active_bush;
+    int counter;
+    int selected_bush;
+    Animation bush_animation;
+    SDL_Texture* bush_texture;
+    SDL_Texture* dead_bush_texture;
+    bool complete;
 };
 
 typedef struct Animation Animation;
@@ -117,6 +140,7 @@ typedef struct Obstacle Obstacle;
 typedef struct Entity Entity;
 typedef struct Collectible Collectible;
 typedef struct Level Level;
+typedef struct OutsideLevelData OutsideLevelData;
 
 std::map<SDL_Scancode, bool> key_map;
 
@@ -136,6 +160,10 @@ float calculateYDistance(Entity e, Obstacle o);
 void calculateTimeToCollide(float x_vel, float y_vel, float dx, float dy, float& x_time, float& y_time);
 bool checkCollision(Entity e, Collectible c);
 bool checkCollision(Entity en, Exit ex);
+
+// Level update functions
+void init_outside(Level* level, void* data);
+void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scancode, bool> key_map);
 
 int main(int argv, char** args)
 {
@@ -170,11 +198,12 @@ int main(int argv, char** args)
     player.speed = 200;
     player.idle_threshold = 200;
 
+    // Kitchen level initialization
     kitchen_level.background_texture = loadTexture(Kitchen_Level_Background_Texture_Filename);
     kitchen_level.num_pre_character_draw_obstacles = 3;
     kitchen_level.num_post_character_draw_obstacles = 1;
-    kitchen_level.pre_character_draw_obstacles[0] = { 0.0, 0.0, 100, 350, 0, 0, loadTexture(Left_Counter_Texture_Filename) };
-    kitchen_level.pre_character_draw_obstacles[1] = { 100.0, 0.0, 700, 200, 0, 0, loadTexture(Back_Counter_Texture_Filename) };
+    kitchen_level.pre_character_draw_obstacles[0] = { 0.0, 0.0, 100, 350, 0, 0, NULL };
+    kitchen_level.pre_character_draw_obstacles[1] = { 100.0, 0.0, 700, 200, 0, 0, NULL };
     kitchen_level.pre_character_draw_obstacles[2] = { 800.0, 0.0, 100, 600, 0, 0, NULL };
     kitchen_level.post_character_draw_obstacles[0] = { 300.0, 310.0, 300, 180, 0, -100, loadTexture(Middle_Counter_Texture_Filename) };
     kitchen_level.x_init = 0;
@@ -184,7 +213,11 @@ int main(int argv, char** args)
     kitchen_level.num_exits = 2;
     kitchen_level.exits[0] = { -(100 + (float)player.width / 2), 400, 100, 200, 2 , 0, 400};
     kitchen_level.exits[1] = { 0.0, (float)SCREEN_HEIGHT + player.height / 2, 800, 100, 1, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height };
+    kitchen_level.init_level = NULL;
+    kitchen_level.update_level = NULL;
+    kitchen_level.level_data = NULL;
 
+    // Bottom level initialization
     bottom_kitchen_level.background_texture = loadTexture(Bottom_Kitchen_Level_Background_Texture_Filename);
     bottom_kitchen_level.num_pre_character_draw_obstacles = 5;
     bottom_kitchen_level.num_post_character_draw_obstacles = 1;
@@ -201,7 +234,11 @@ int main(int argv, char** args)
     bottom_kitchen_level.exits[1] = { SCREEN_WIDTH + player.width / 2, 100, 100, 110, 3, SCREEN_WIDTH - player.width, 100 };
     bottom_kitchen_level.exits[2] = { 90.0, -(player.height + player.height / 2), 120, 100, 4, 100, 0 };
     bottom_kitchen_level.exits[3] = { 490.0, -(player.height + player.height / 2), 120, 100, 5, 500, 0 };
+    bottom_kitchen_level.init_level = NULL;
+    bottom_kitchen_level.update_level = NULL;
+    bottom_kitchen_level.level_data = NULL;
 
+    // Living room level initialization
     living_room_level.background_texture = loadTexture(Living_Room_Level_Background_Texture_Filename);
     living_room_level.num_pre_character_draw_obstacles = 4;
     living_room_level.pre_character_draw_obstacles[0] = {0.0, 0.0, 615, 335, 0, 0, NULL };
@@ -212,7 +249,11 @@ int main(int argv, char** args)
     living_room_level.y_init = 400;
     living_room_level.num_exits = 1;
     living_room_level.exits[0] = { -(100 + (float)player.width / 2), 335, 100, 265, 0 , 0, 400};
+    living_room_level.init_level = NULL;
+    living_room_level.update_level = NULL;
+    living_room_level.level_data = NULL;
     
+    // Hallway level initialization
     hallway_level.background_texture = loadTexture(Hallway_Level_Background_Texture_Filename);
     hallway_level.num_pre_character_draw_obstacles = 4;
     hallway_level.num_post_character_draw_obstacles = 1;
@@ -226,17 +267,49 @@ int main(int argv, char** args)
     hallway_level.num_exits = 2;
     hallway_level.exits[0] = { 300, 125, 100, 175, 1 , 450, 125};
     hallway_level.exits[1] = { 590, -150, 120, 100, 6 , 600, 0};
+    hallway_level.init_level = NULL;
+    hallway_level.update_level = NULL;
+    hallway_level.level_data = NULL;
     
+    // Outside level initialization
     outside_level.background_texture = loadTexture(Outside_Level_Background_Texture_Filename);
-    outside_level.num_pre_character_draw_obstacles = 3;
+    outside_level.num_pre_character_draw_obstacles = 8;
+    outside_level.num_post_character_draw_obstacles = 0;
     outside_level.pre_character_draw_obstacles[0] = {-100, 0.0, 100, 600, 0, 0, NULL };
     outside_level.pre_character_draw_obstacles[1] = {0.0, 0.0, 800, 100, 0, 0, NULL };
     outside_level.pre_character_draw_obstacles[2] = {800.0, 0.0, 100, 600, 0, 0, NULL };
+    SDL_Texture* bush_texture = loadTexture(Bush_Texture_Filename);
+    outside_level.pre_character_draw_obstacles[3] = {105.0, 205.0, 80, 25, 0, 0, bush_texture };
+    outside_level.pre_character_draw_obstacles[4] = {605.0, 205.0, 80, 25, 0, 0, bush_texture };
+    outside_level.pre_character_draw_obstacles[5] = {355.0, 305.0, 80, 25, 0, 0, bush_texture };
+    outside_level.pre_character_draw_obstacles[6] = {105.0, 405.0, 80, 25, 0, 0, bush_texture };
+    outside_level.pre_character_draw_obstacles[7] = {605.0, 405.0, 80, 25, 0, 0, bush_texture };
     outside_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
     outside_level.y_init = SCREEN_HEIGHT - player.height;
     outside_level.num_exits = 1;
     outside_level.exits[0] = { 0, SCREEN_HEIGHT + player.height / 2, 800, 100, 1 , SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
 
+    outside_level.init_level = &init_outside;
+    outside_level.update_level = &update_outside; 
+    OutsideLevelData outside_level_data;
+    outside_level_data.num_bushes = 5;
+    outside_level_data.active_bush = 0;
+    outside_level_data.counter = 0;
+    outside_level_data.selected_bush = 0;
+    outside_level_data.complete = false;
+    Animation bush_animation;
+    bush_animation.animation_counter = 0;
+    bush_animation.animation_speed = 15;
+    bush_animation.current_texture_index = 0;
+    bush_animation.num_textures = 2;
+    bush_animation.textures[0] = loadTexture(Angry_Bush_1_Texture_Filename);
+    bush_animation.textures[1] = loadTexture(Angry_Bush_2_Texture_Filename);
+    outside_level_data.bush_animation = bush_animation;
+    outside_level_data.bush_texture = bush_texture;
+    outside_level_data.dead_bush_texture = loadTexture(Angry_Bush_3_Texture_Filename);
+    outside_level.level_data = &outside_level_data;
+
+    // Office level initialization
     office_level.background_texture = loadTexture(Office_Level_Background_Texture_Filename);
     office_level.num_pre_character_draw_obstacles = 4;
     office_level.pre_character_draw_obstacles[0] = {-100, 0.0, 100, 600, 0, 0, NULL };
@@ -247,7 +320,11 @@ int main(int argv, char** args)
     office_level.y_init = SCREEN_HEIGHT - player.height;
     office_level.num_exits = 1;
     office_level.exits[0] = { 0, SCREEN_HEIGHT + player.height / 2, 800, 100, 1 , SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+    office_level.init_level = NULL;
+    office_level.update_level = NULL;
+    office_level.level_data = NULL;
 
+    // Bedroom level initialization
     bedroom_level.background_texture = loadTexture(Bedroom_Level_Background_Texture_Filename);
     bedroom_level.num_pre_character_draw_obstacles = 4;
     bedroom_level.pre_character_draw_obstacles[0] = {-100, 0.0, 100, 600, 0, 0, NULL };
@@ -258,6 +335,9 @@ int main(int argv, char** args)
     bedroom_level.y_init = SCREEN_HEIGHT - player.height;
     bedroom_level.num_exits = 1;
     bedroom_level.exits[0] = { 0, SCREEN_HEIGHT + player.height / 2, 800, 100, 3, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+    bedroom_level.init_level = NULL;
+    bedroom_level.update_level = NULL;
+    bedroom_level.level_data = NULL;
 
     int current_level_index = 0;
     Level levels[MAX_NUM_LEVELS];
@@ -283,12 +363,20 @@ int main(int argv, char** args)
     player.animations[2].num_textures = 1;
     player.animations[2].textures[0] = loadTexture(Idle_Texture_Filename);
 
+    player.animations[3].num_textures = 2;
+    player.animations[3].animation_speed = 10;
+    player.animations[3].textures[0] = loadTexture(Peeing_Texture_Filename_1);
+    player.animations[3].textures[1] = loadTexture(Peeing_Texture_Filename_2);
+
+    player.animation_counter = 0;
+
     player.facing_right = true;
 
     key_map[SDL_SCANCODE_UP] = false;
     key_map[SDL_SCANCODE_DOWN] = false;
     key_map[SDL_SCANCODE_LEFT] = false;
     key_map[SDL_SCANCODE_RIGHT] = false;
+    key_map[SDL_SCANCODE_SPACE] = false;
 
     int num_frames = 0;
     int prev_time = 0;
@@ -310,7 +398,14 @@ int main(int argv, char** args)
         else
         {
             handleInput();
-            updatePlayer(player);
+            if(player.animation_counter == 0)
+            {
+                updatePlayer(player);
+            }
+            else
+            {
+                player.animation_counter--;
+            }
 
             Animation* animation = &player.animations[player.current_animation_index];
 
@@ -328,6 +423,11 @@ int main(int argv, char** args)
             }
             
             Level& level = levels[current_level_index];
+
+            if(level.update_level != NULL)
+            {
+                level.update_level(&level, level.level_data, &player, key_map);
+            }
 
             // Check collision
             float x_min_time = 1;
@@ -396,15 +496,6 @@ int main(int argv, char** args)
 
                 player.y += player.y_vel * delta_time * y_min_time;
             }
-            // float min_time = x_min_time;
-            // if(y_min_time < x_min_time)
-            // {
-            //     min_time = y_min_time;
-            // }
-            // float prev_x = player.x;
-            // float prev_y = player.y;
-            // player.x += player.x_vel * delta_time * min_time;
-            // player.y += player.y_vel * delta_time * min_time;
 
             // Check collectible collision
             for(int i = 0; i < level.num_collectibles; i++)
@@ -449,6 +540,11 @@ int main(int argv, char** args)
                     }
 
                     level_transition_counter = MAX_NUM_LEVEL_TRANSITION_FRAMES;
+
+                    if(levels[level.exits[i].next_level_index].init_level != NULL)
+                    {
+                        levels[level.exits[i].next_level_index].init_level(&levels[level.exits[i].next_level_index], levels[level.exits[i].next_level_index].level_data);
+                    }
                     break;
                 }
             }
@@ -551,40 +647,16 @@ void handleInput()
             {
                 isRunning = false;
             }
-            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_UP)
+            else if (!event.key.repeat)
             {
                 key_map[event.key.keysym.scancode] = true;
-            }
-            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_DOWN)
-            {
-                key_map[event.key.keysym.scancode] = true;
-            }
-            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_LEFT)
-            {
-                key_map[event.key.keysym.scancode] = true;
-            }
-            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_RIGHT)
-            {
-                key_map[event.key.keysym.scancode] = true;                    
             }
             break;
         
         case SDL_KEYUP:
-            if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_UP)
+            if (!event.key.repeat)
             {
                 key_map[event.key.keysym.scancode] = false;
-            }
-            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_DOWN)
-            {
-                key_map[event.key.keysym.scancode] = false;                    
-            }
-            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_LEFT)
-            {
-                key_map[event.key.keysym.scancode] = false;                    
-            }
-            else if (!event.key.repeat && event.key.keysym.scancode == SDL_SCANCODE_RIGHT)
-            {
-                key_map[event.key.keysym.scancode] = false;                    
             }
             break;
         }
@@ -754,4 +826,115 @@ void calculateTimeToCollide(float x_vel, float y_vel, float dx, float dy, float&
 {
     x_time = x_vel != 0 ? abs(dx / x_vel) : 0;
     y_time = y_vel != 0 ? abs(dy / y_vel) : 0;
+}
+
+void init_outside(Level* level, void* data)
+{
+    OutsideLevelData* outside_level_data = (OutsideLevelData*)data;
+
+    if(!outside_level_data->complete)
+    {
+        outside_level_data->counter = 0;
+    }
+    else
+    {
+        outside_level_data->counter = 60;
+        for(int i = 0; i < outside_level_data->num_bushes; i++)
+        {
+            level->pre_character_draw_obstacles[i + 3].texture = outside_level_data->dead_bush_texture;
+        }
+    }
+}
+
+void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scancode, bool> key_map)
+{
+    OutsideLevelData* outside_level_data = (OutsideLevelData*)data;
+
+    if(outside_level_data->counter < 60)
+    {        
+        if(outside_level_data->counter == 59)
+        {
+            for(int i = 0; i < outside_level_data->num_bushes; i++)
+            {
+                level->pre_character_draw_obstacles[i + 3].texture = outside_level_data->bush_texture;
+            }
+        }
+        else
+        {
+            Animation* animation = &outside_level_data->bush_animation;
+
+            for(int i = 0; i < outside_level_data->num_bushes; i++)
+            {
+                level->pre_character_draw_obstacles[i + 3].texture = animation->textures[animation->current_texture_index];
+            }
+            
+            if((animation->animation_counter++ % animation->animation_speed) == 0)
+            {
+                animation->current_texture_index = (animation->current_texture_index + 1) % animation->num_textures;
+            }
+        }
+    }
+    else if(!outside_level_data->complete)
+    {
+        if(player->current_animation_index == 3)
+        {
+            if(player->animation_counter > 1)
+            {
+                if(outside_level_data->selected_bush == outside_level_data->active_bush)
+                {
+                    for(int i = 0; i < outside_level_data->num_bushes; i++)
+                    {
+                        level->pre_character_draw_obstacles[i + 3].texture = outside_level_data->dead_bush_texture;
+                    }
+                }
+                else
+                {
+                    Animation* animation = &outside_level_data->bush_animation;
+
+                    level->pre_character_draw_obstacles[outside_level_data->active_bush + 3].texture = animation->textures[animation->current_texture_index];
+                    
+                    if((animation->animation_counter++ % animation->animation_speed) == 0)
+                    {
+                        animation->current_texture_index = (animation->current_texture_index + 1) % animation->num_textures;
+                    }
+                }
+            }
+            else
+            {
+                if(outside_level_data->selected_bush == outside_level_data->active_bush)
+                {
+                     outside_level_data->complete = true;
+                }
+                else
+                {
+                    level->pre_character_draw_obstacles[outside_level_data->active_bush + 3].texture = outside_level_data->bush_texture;
+                    outside_level_data->active_bush = (outside_level_data->active_bush + 3) % outside_level_data->num_bushes;
+                    level->pre_character_draw_obstacles[outside_level_data->selected_bush + 3].texture = outside_level_data->bush_texture;
+                }
+                player->current_animation_index = 0;
+            }
+
+        }
+        else if(key_map[SDL_SCANCODE_SPACE])
+        {
+            bool in_range = false;
+            for(int i = 0 ; i < outside_level_data->num_bushes; i++)
+            {
+                Obstacle o = level->pre_character_draw_obstacles[i + 3];
+                o.y += 25;
+                bool collision = checkXYCollision(*player, o, 0.0);
+                if(collision)
+                {
+                    player->current_animation_index = 3;
+                    player->animation_counter = 60;
+                    player->x_vel = 0;
+                    player->y_vel = 0;
+                    outside_level_data->selected_bush = i;
+                    outside_level_data->bush_animation.animation_counter = 0;
+                }
+            }
+        }
+    }
+    outside_level_data->counter++;
+
 }
