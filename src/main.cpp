@@ -36,7 +36,8 @@ char Loft_Level_Background_Texture_Filename[] = "assets/loft_background.png\0";
 char Bush_Texture_Filename[] = "assets/bush.png\0";
 char Angry_Bush_1_Texture_Filename[] = "assets/angry_bush_1.png\0";
 char Angry_Bush_2_Texture_Filename[] = "assets/angry_bush_2.png\0";
-char Angry_Bush_3_Texture_Filename[] = "assets/angry_bush_3.png\0";
+char Dead_Bush_1_Texture_Filename[] = "assets/dead_bush_1.png\0";
+char Dead_Bush_2_Texture_Filename[] = "assets/dead_bush_2.png\0";
 
 SDL_Renderer *renderer;
 SDL_Window* window;
@@ -127,11 +128,13 @@ struct OutsideLevelData
 {
     int num_bushes;
     int active_bush;
+    int active_bush_increment;
     int counter;
     int selected_bush;
     Animation bush_animation;
     SDL_Texture* bush_texture;
-    SDL_Texture* dead_bush_texture;
+    SDL_Texture* dead_bush_texture_1;
+    SDL_Texture* dead_bush_texture_2;
     bool complete;
 };
 
@@ -279,11 +282,11 @@ int main(int argv, char** args)
     outside_level.pre_character_draw_obstacles[1] = {0.0, 0.0, 800, 100, 0, 0, NULL };
     outside_level.pre_character_draw_obstacles[2] = {800.0, 0.0, 100, 600, 0, 0, NULL };
     SDL_Texture* bush_texture = loadTexture(Bush_Texture_Filename);
-    outside_level.pre_character_draw_obstacles[3] = {105.0, 205.0, 80, 25, 0, 0, bush_texture };
-    outside_level.pre_character_draw_obstacles[4] = {605.0, 205.0, 80, 25, 0, 0, bush_texture };
-    outside_level.pre_character_draw_obstacles[5] = {355.0, 305.0, 80, 25, 0, 0, bush_texture };
-    outside_level.pre_character_draw_obstacles[6] = {105.0, 405.0, 80, 25, 0, 0, bush_texture };
-    outside_level.pre_character_draw_obstacles[7] = {605.0, 405.0, 80, 25, 0, 0, bush_texture };
+    outside_level.pre_character_draw_obstacles[3] = {105.0, 225.0, 80, 2, 0, -20, bush_texture };
+    outside_level.pre_character_draw_obstacles[4] = {605.0, 225.0, 80, 2, 0, -20, bush_texture };
+    outside_level.pre_character_draw_obstacles[5] = {355.0, 325.0, 80, 2, 0, -20, bush_texture };
+    outside_level.pre_character_draw_obstacles[6] = {105.0, 425.0, 80, 2, 0, -20, bush_texture };
+    outside_level.pre_character_draw_obstacles[7] = {605.0, 425.0, 80, 2, 0, -20, bush_texture };
     outside_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
     outside_level.y_init = SCREEN_HEIGHT - player.height;
     outside_level.num_exits = 1;
@@ -306,7 +309,8 @@ int main(int argv, char** args)
     bush_animation.textures[1] = loadTexture(Angry_Bush_2_Texture_Filename);
     outside_level_data.bush_animation = bush_animation;
     outside_level_data.bush_texture = bush_texture;
-    outside_level_data.dead_bush_texture = loadTexture(Angry_Bush_3_Texture_Filename);
+    outside_level_data.dead_bush_texture_1 = loadTexture(Dead_Bush_1_Texture_Filename);
+    outside_level_data.dead_bush_texture_2 = loadTexture(Dead_Bush_2_Texture_Filename);
     outside_level.level_data = &outside_level_data;
 
     // Office level initialization
@@ -384,7 +388,7 @@ int main(int argv, char** args)
 
     while (isRunning)
     {
-        int current_time = SDL_GetTicks();
+        unsigned int current_time = SDL_GetTicks();
         float delta_time = (current_time - prev_time) * 1e-3;
         prev_time = current_time;
 
@@ -835,13 +839,16 @@ void init_outside(Level* level, void* data)
     if(!outside_level_data->complete)
     {
         outside_level_data->counter = 0;
+        unsigned int ticks = SDL_GetTicks();
+        outside_level_data->active_bush = ticks % outside_level_data->num_bushes;
+        outside_level_data->active_bush_increment = ticks % outside_level_data->num_bushes;
     }
     else
     {
         outside_level_data->counter = 60;
         for(int i = 0; i < outside_level_data->num_bushes; i++)
         {
-            level->pre_character_draw_obstacles[i + 3].texture = outside_level_data->dead_bush_texture;
+            level->pre_character_draw_obstacles[i + 3].texture = outside_level_data->dead_bush_texture_2;
         }
     }
 }
@@ -884,7 +891,7 @@ void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scanc
                 {
                     for(int i = 0; i < outside_level_data->num_bushes; i++)
                     {
-                        level->pre_character_draw_obstacles[i + 3].texture = outside_level_data->dead_bush_texture;
+                        level->pre_character_draw_obstacles[i + 3].texture = outside_level_data->dead_bush_texture_1;
                     }
                 }
                 else
@@ -903,12 +910,12 @@ void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scanc
             {
                 if(outside_level_data->selected_bush == outside_level_data->active_bush)
                 {
-                     outside_level_data->complete = true;
+                    outside_level_data->complete = true;
                 }
                 else
                 {
                     level->pre_character_draw_obstacles[outside_level_data->active_bush + 3].texture = outside_level_data->bush_texture;
-                    outside_level_data->active_bush = (outside_level_data->active_bush + 3) % outside_level_data->num_bushes;
+                    outside_level_data->active_bush = (outside_level_data->active_bush + outside_level_data->active_bush_increment) % outside_level_data->num_bushes;
                     level->pre_character_draw_obstacles[outside_level_data->selected_bush + 3].texture = outside_level_data->bush_texture;
                 }
                 player->current_animation_index = 0;
