@@ -233,10 +233,10 @@ int main(int argv, char** args)
     bottom_kitchen_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
     bottom_kitchen_level.y_init = SCREEN_HEIGHT - player.height;
     bottom_kitchen_level.num_exits = 4;
-    bottom_kitchen_level.exits[0] = { 0.0, SCREEN_HEIGHT + player.height / 2, 800, 100, 0, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height };
-    bottom_kitchen_level.exits[1] = { SCREEN_WIDTH + player.width / 2, 100, 100, 110, 3, SCREEN_WIDTH - player.width, 100 };
-    bottom_kitchen_level.exits[2] = { 90.0, -(player.height + player.height / 2), 120, 100, 4, 100, 0 };
-    bottom_kitchen_level.exits[3] = { 490.0, -(player.height + player.height / 2), 120, 100, 5, 500, 0 };
+    bottom_kitchen_level.exits[0] = { 0.0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, 0, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height };
+    bottom_kitchen_level.exits[1] = { SCREEN_WIDTH + (float)player.width / 2, 100, 100, 110, 3, SCREEN_WIDTH - player.width, 100 };
+    bottom_kitchen_level.exits[2] = { 90.0, -((float)player.height + (float)player.height / 2), 120, 100, 4, 100, 0 };
+    bottom_kitchen_level.exits[3] = { 490.0, -((float)player.height + (float)player.height / 2), 120, 100, 5, 500, 0 };
     bottom_kitchen_level.init_level = NULL;
     bottom_kitchen_level.update_level = NULL;
     bottom_kitchen_level.level_data = NULL;
@@ -290,7 +290,7 @@ int main(int argv, char** args)
     outside_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
     outside_level.y_init = SCREEN_HEIGHT - player.height;
     outside_level.num_exits = 1;
-    outside_level.exits[0] = { 0, SCREEN_HEIGHT + player.height / 2, 800, 100, 1 , SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+    outside_level.exits[0] = { 0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, 1 , SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
 
     outside_level.init_level = &init_outside;
     outside_level.update_level = &update_outside; 
@@ -328,7 +328,7 @@ int main(int argv, char** args)
     office_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
     office_level.y_init = SCREEN_HEIGHT - player.height;
     office_level.num_exits = 1;
-    office_level.exits[0] = { 0, SCREEN_HEIGHT + player.height / 2, 800, 100, 1 , SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+    office_level.exits[0] = { 0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, 1 , SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
     office_level.init_level = NULL;
     office_level.update_level = NULL;
     office_level.level_data = NULL;
@@ -343,7 +343,7 @@ int main(int argv, char** args)
     bedroom_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
     bedroom_level.y_init = SCREEN_HEIGHT - player.height;
     bedroom_level.num_exits = 1;
-    bedroom_level.exits[0] = { 0, SCREEN_HEIGHT + player.height / 2, 800, 100, 3, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+    bedroom_level.exits[0] = { 0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, 3, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
     bedroom_level.init_level = NULL;
     bedroom_level.update_level = NULL;
     bedroom_level.level_data = NULL;
@@ -863,8 +863,10 @@ void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scanc
 {
     OutsideLevelData* outside_level_data = (OutsideLevelData*)data;
 
+    // Bushes bounce when entering level
     if(outside_level_data->counter < 60)
     {        
+        // At last timestep set all bush textures to ordinary bush texture
         if(outside_level_data->counter == 59)
         {
             for(int i = 0; i < outside_level_data->num_bushes; i++)
@@ -872,6 +874,7 @@ void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scanc
                 level->pre_character_draw_obstacles[i + 3].texture = outside_level_data->bush_texture;
             }
         }
+        // Bounce animation
         else
         {
             Animation* animation = &outside_level_data->bush_animation;
@@ -887,10 +890,13 @@ void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scanc
             }
         }
     }
+    // After level initialization perform level logic if level is not complete
     else if(!outside_level_data->complete)
     {
+        // Player has selected bush 
         if(player->current_animation_index == 3)
         {
+            // Logic while player animation is happening
             if(player->animation_counter > 1)
             {
                 if(outside_level_data->selected_bush == outside_level_data->bush_order[outside_level_data->bush_index])
@@ -909,16 +915,20 @@ void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scanc
                     }
                 }
             }
+            // Player animation has finished so check if selected bush was correct
             else
             {
+                // Selected bush is correct
                 if(outside_level_data->selected_bush == outside_level_data->bush_order[outside_level_data->bush_index])
                 {
                     outside_level_data->bush_index++;
+                    // Player has selected bushes in correct order
                     if(outside_level_data->bush_index == outside_level_data->num_bushes)
                     {
                         outside_level_data->complete = true;
                     }
                 }
+                // Selected bush is incorrect
                 else
                 {
                     outside_level_data->bush_index = 0;
@@ -931,11 +941,13 @@ void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scanc
             }
 
         }
+        // Handle input 
         else if(key_map[SDL_SCANCODE_SPACE])
         {
             bool in_range = false;
             for(int i = 0 ; i < outside_level_data->num_bushes; i++)
             {
+                // Check if bush has already been selected
                 bool check_for_collision = true;
                 if(outside_level_data->bush_index > 0)
                 {
@@ -948,6 +960,7 @@ void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scanc
                         }
                     }
                 }
+                // If bush has not been selected already then check if player is selecting current bush
                 if(check_for_collision)
                 {
                     Obstacle o = level->pre_character_draw_obstacles[i + 3];
