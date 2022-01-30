@@ -10,6 +10,7 @@
 				"src/*.cpp",
 				"-o",
 				"build/game.exe",
+				"-Iinc",
 				"-I../SDL2-2.0.18/x86_64-w64-mingw32/include",
 				"-L../SDL2-2.0.18/x86_64-w64-mingw32/lib",
 				"-lmingw32",
