@@ -23,6 +23,7 @@ char Middle_Counter_Texture_Filename[] = "assets/middle_counter.png\0";
 char White_Lamb_Texture_Filename[] = "assets/white_lamb.png\0";
 char Purple_Lamb_Texture_Filename[] = "assets/purple_lamb.png\0";
 char Living_Room_Level_Background_Texture_Filename[] = "assets/living_room_level_background.png\0";
+char Coffee_Table_Texture_Filename[] = "assets/coffee_table.png\0";
 char Hallway_Level_Background_Texture_Filename[] = "assets/hallway_background.png\0";
 char Hallway_Stairs_Texture_Filename[] = "assets/hallway_stairs.png\0";
 char Outside_Level_Background_Texture_Filename[] = "assets/outside_background.png\0";
@@ -142,11 +143,13 @@ int main(int argv, char** args)
     // Living room level initialization
     living_room_level.background_texture = loadTexture(Living_Room_Level_Background_Texture_Filename);
     living_room_level.num_pre_character_draw_obstacles = 5;
+    living_room_level.num_post_character_draw_obstacles = 2;
     living_room_level.pre_character_draw_obstacles[0] = {0.0, 0.0, 615, 335, 0, 0, NULL };
     living_room_level.pre_character_draw_obstacles[1] = {615.0, 0.0, 185, 50, 0, 0, NULL };
     living_room_level.pre_character_draw_obstacles[2] = {0.0, 600.0, 800, 100, 0, 0, NULL };
     living_room_level.pre_character_draw_obstacles[3] = {800.0, 0.0, 100, 600, 0, 0, NULL };
-    living_room_level.pre_character_draw_obstacles[4] = {620.0, 115.0, 100, 100, 0, 0, loadTexture(Vaccuum_1_Texture_Filename) };
+    living_room_level.post_character_draw_obstacles[0] = {620.0, 115.0, 100, 20, 0, -80, loadTexture(Vaccuum_1_Texture_Filename) };
+    living_room_level.post_character_draw_obstacles[1] = {175, 440, 400, 55, 0, -55, loadTexture(Coffee_Table_Texture_Filename) };
     living_room_level.x_init = 0;
     living_room_level.y_init = 400;
     living_room_level.num_exits = 1;
@@ -157,8 +160,6 @@ int main(int argv, char** args)
     LivingRoomLevelData living_room_level_data;
     living_room_level_data.counter = 0;
     living_room_level_data.complete = false;
-    living_room_level_data.vaccuum_x_velocity = 0;
-    living_room_level_data.vaccuum_y_velocity = 0;
     living_room_level_data.num_vaccuum_cord_points = 0;
     Animation vaccuum_animation;
     vaccuum_animation.animation_counter = 0;
@@ -716,11 +717,9 @@ void init_living_room(Level* level, void* data)
     {
         living_room_level_data->counter = 0;
         living_room_level_data->num_vaccuum_cord_points = 0;
-        living_room_level_data->vaccuum_x_velocity = 0;
-        living_room_level_data->vaccuum_y_velocity = 0;
 
-        level->pre_character_draw_obstacles[4].x = 620.0;
-        level->pre_character_draw_obstacles[4].y = 115.0;
+        level->post_character_draw_obstacles[0].x = 620.0;
+        level->post_character_draw_obstacles[0].y = 115.0;
     }
 }
 
@@ -728,7 +727,7 @@ void update_living_room(Level* level, void* data, Entity* player, std::map<SDL_S
 {
     LivingRoomLevelData* living_room_level_data = (LivingRoomLevelData*)data;
 
-    Obstacle* vaccuum = &level->pre_character_draw_obstacles[4];
+    Obstacle* vaccuum = &level->post_character_draw_obstacles[0];
 
     if(player->current_animation_index == 3)
     {
@@ -736,7 +735,7 @@ void update_living_room(Level* level, void* data, Entity* player, std::map<SDL_S
             if(player->animation_counter > 1)
             {
                 Animation* animation = &living_room_level_data->vaccuum_short_circuit_animation;
-                level->pre_character_draw_obstacles[4].texture = updateAnimation(animation);
+                level->post_character_draw_obstacles[0].texture = updateAnimation(animation);
             }
             // Player animation has finished so check if selected bush was correct
             else
@@ -750,26 +749,28 @@ void update_living_room(Level* level, void* data, Entity* player, std::map<SDL_S
     else if(living_room_level_data->complete)
     {
         Animation* animation = &living_room_level_data->vaccuum_smoking_animation;
-        level->pre_character_draw_obstacles[4].texture = updateAnimation(animation);
+        level->post_character_draw_obstacles[0].texture = updateAnimation(animation);
     }
     else if(living_room_level_data->num_vaccuum_cord_points < MAX_NUM_VACCUUM_CORD_POINTS)
     {
-        float vaccuum_speed = 50;
+        float vaccuum_speed = 75;
+        float x_vel = 0;
+        float y_vel = 0;
         if(vaccuum->x > player->x)
         {
-            living_room_level_data->vaccuum_x_velocity = -vaccuum_speed;
+            x_vel = -vaccuum_speed;
         }
         else
         {
-            living_room_level_data->vaccuum_x_velocity = vaccuum_speed;
+            x_vel = vaccuum_speed;
         }
         if(vaccuum->y > player->y)
         {
-            living_room_level_data->vaccuum_y_velocity = -vaccuum_speed;
+            y_vel = -vaccuum_speed;
         }
         else
         {
-            living_room_level_data->vaccuum_y_velocity = vaccuum_speed;
+            y_vel = vaccuum_speed;
         }
 
         // Check collision
@@ -777,9 +778,9 @@ void update_living_room(Level* level, void* data, Entity* player, std::map<SDL_S
         float y_min_time = 1;
 
         // X Axis
-        if(living_room_level_data->vaccuum_x_velocity != 0)
+        if(x_vel != 0)
         {
-            bool player_collision = checkXYCollision(*player, level->pre_character_draw_obstacles[4], delta_time);
+            bool player_collision = checkXYCollision(*player, level->post_character_draw_obstacles[0], delta_time);
             if(player_collision)
             {
                 level->init_level(level, living_room_level_data);
@@ -788,14 +789,14 @@ void update_living_room(Level* level, void* data, Entity* player, std::map<SDL_S
                 level_transition_counter = MAX_NUM_LEVEL_TRANSITION_FRAMES;
             }
 
-            for(int i = 0; i < level->num_pre_character_draw_obstacles - 1; i++)
+            for(int i = 0; i < level->num_pre_character_draw_obstacles; i++)
             {
                 Obstacle* o = &level->pre_character_draw_obstacles[i];
-                bool x_collision = checkXCollision(vaccuum->x, vaccuum->y, vaccuum->width, vaccuum->height, o->x, o->y, o->width, o->height, delta_time, living_room_level_data->vaccuum_x_velocity);// (player, level->pre_character_draw_obstacles[i], delta_time);
+                bool x_collision = checkXCollision(vaccuum->x, vaccuum->y, vaccuum->width, vaccuum->height, o->x, o->y, o->width, o->height, delta_time, x_vel);
                 if(x_collision)
                 {
                     float dx = calculateXDistance(*vaccuum, *o);
-                    float x_time = abs(dx / living_room_level_data->vaccuum_x_velocity);
+                    float x_time = abs(dx / x_vel);
                     if(x_time < x_min_time)
                     {
                         x_min_time = x_time;
@@ -803,11 +804,23 @@ void update_living_room(Level* level, void* data, Entity* player, std::map<SDL_S
                 }
             }
 
-            vaccuum->x += living_room_level_data->vaccuum_x_velocity * delta_time * x_min_time;
+            Obstacle* o = &level->post_character_draw_obstacles[1];
+            bool x_collision = checkXCollision(vaccuum->x, vaccuum->y, vaccuum->width, vaccuum->height, o->x, o->y, o->width, o->height, delta_time, x_vel);
+            if(x_collision)
+            {
+                float dx = calculateXDistance(*vaccuum, *o);
+                float x_time = abs(dx / x_vel);
+                if(x_time < x_min_time)
+                {
+                    x_min_time = x_time;
+                }
+            }
+
+            vaccuum->x += x_vel * delta_time * x_min_time;
         }
-        if(living_room_level_data->vaccuum_y_velocity != 0)
+        if(y_vel != 0)
         {
-            bool player_collision = checkXYCollision(*player, level->pre_character_draw_obstacles[4], delta_time);
+            bool player_collision = checkXYCollision(*player, level->post_character_draw_obstacles[0], delta_time);
             if(player_collision)
             {
                 level->init_level(level, living_room_level_data);
@@ -816,37 +829,49 @@ void update_living_room(Level* level, void* data, Entity* player, std::map<SDL_S
                 level_transition_counter = MAX_NUM_LEVEL_TRANSITION_FRAMES;
             }
             
-            for(int i = 0; i < level->num_pre_character_draw_obstacles - 1; i++)
+            for(int i = 0; i < level->num_pre_character_draw_obstacles; i++)
             {
                 Obstacle* o = &level->pre_character_draw_obstacles[i];
-                bool y_collision = checkYCollision(vaccuum->x, vaccuum->y, vaccuum->width, vaccuum->height, o->x, o->y, o->width, o->height, delta_time, living_room_level_data->vaccuum_y_velocity);
+                bool y_collision = checkYCollision(vaccuum->x, vaccuum->y, vaccuum->width, vaccuum->height, o->x, o->y, o->width, o->height, delta_time, y_vel);
                 if(y_collision)
                 {
                     float dy = calculateYDistance(*vaccuum, *o);
-                    float y_time = abs(dy / living_room_level_data->vaccuum_y_velocity);
+                    float y_time = abs(dy / y_vel);
                     if(y_time < y_min_time)
                     {
                         y_min_time = y_time;
                     }
                 }
             }
+            
+            Obstacle* o = &level->post_character_draw_obstacles[1];
+            bool y_collision = checkYCollision(vaccuum->x, vaccuum->y, vaccuum->width, vaccuum->height, o->x, o->y, o->width, o->height, delta_time, y_vel);
+            if(y_collision)
+            {
+                float dy = calculateYDistance(*vaccuum, *o);
+                float y_time = abs(dy / y_vel);
+                if(y_time < y_min_time)
+                {
+                    y_min_time = y_time;
+                }
+            }
 
-            vaccuum->y += living_room_level_data->vaccuum_y_velocity * delta_time * y_min_time;
+            vaccuum->y += y_vel * delta_time * y_min_time;
         }
 
         Animation* animation = &living_room_level_data->vaccuum_animation;
 
-        level->pre_character_draw_obstacles[4].texture = updateAnimation(animation);
+        level->post_character_draw_obstacles[0].texture = updateAnimation(animation);
 
         if((living_room_level_data->counter % 20) == 0)
         {
             living_room_level_data->vaccuum_cord_points[living_room_level_data->num_vaccuum_cord_points * 2] = vaccuum->x + 50;
-            living_room_level_data->vaccuum_cord_points[living_room_level_data->num_vaccuum_cord_points * 2 + 1] = vaccuum->y + 50;
+            living_room_level_data->vaccuum_cord_points[living_room_level_data->num_vaccuum_cord_points * 2 + 1] = vaccuum->y + 10;
             living_room_level_data->num_vaccuum_cord_points++;
         }
     }
 
-    if(key_map[SDL_SCANCODE_SPACE])
+    if(key_map[SDL_SCANCODE_SPACE] && !living_room_level_data->complete)
     {
         player->current_animation_index = 3;
         player->animation_counter = 60;
@@ -870,7 +895,7 @@ void draw_living_room(Level* level, void* data, SDL_Renderer* renderer)
             if(i == living_room_level_data->num_vaccuum_cord_points - 1)
             {
                 SDL_RenderDrawLineF(renderer, living_room_level_data->vaccuum_cord_points[i * 2], living_room_level_data->vaccuum_cord_points[i * 2 + 1],
-                                                level->pre_character_draw_obstacles[4].x + 50, level->pre_character_draw_obstacles[4].y + 50);
+                                                level->post_character_draw_obstacles[0].x + 50, level->post_character_draw_obstacles[0].y + 10);
             }
             else
             {

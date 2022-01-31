@@ -102,8 +102,6 @@ struct OutsideLevelData
 struct LivingRoomLevelData
 {
     int counter;
-    float vaccuum_x_velocity;
-    float vaccuum_y_velocity;
     float vaccuum_final_x_position;
     float vaccuum_final_y_position;
     Animation vaccuum_animation;
