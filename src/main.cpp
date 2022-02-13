@@ -29,6 +29,10 @@ char Hallway_Stairs_Texture_Filename[] = "assets/hallway_stairs.png\0";
 char Outside_Level_Background_Texture_Filename[] = "assets/outside_background.png\0";
 char Office_Level_Background_Texture_Filename[] = "assets/office_background.png\0";
 char Bedroom_Level_Background_Texture_Filename[] = "assets/bedroom_background.png\0";
+char Bed_Maze_Entrance_Texture_Filename[] = "assets/bed_maze_entrance.png\0";
+char Bed_Maze_Spotlight_Texture_Fileanme[] = "assets/bed_maze_spotlight.png\0";
+char Bedroom_Level_Maze_1_Background_Texture_Filename[] = "assets/bedroom_maze_1_background.png\0";
+char Bedroom_Level_Maze_2_Background_Texture_Filename[] = "assets/bedroom_maze_2_background.png\0";
 char Loft_Level_Background_Texture_Filename[] = "assets/loft_background.png\0";
 char Bush_Texture_Filename[] = "assets/bush.png\0";
 char Angry_Bush_1_Texture_Filename[] = "assets/angry_bush_1.png\0";
@@ -57,13 +61,17 @@ void blit(SDL_Texture* texture, int x, int y, int x_offset, int y_offset);
 void blit(SDL_Texture* texture, int x, int y, bool facing_right);
 SDL_Texture* updateAnimation(Animation* animation);
 
-// Level update functions
+// Outside level functions
 void init_outside(Level* level, void* data);
 void update_outside(Level* level, void* data, Entity* player, std::map<SDL_Scancode, bool> key_map, float delta_time);
 
+// Living room level functions
 void init_living_room(Level* level, void* data);
 void update_living_room(Level* level, void* data, Entity* player, std::map<SDL_Scancode, bool> key_map, float delta_time);
 void draw_living_room(Level* level, void* data, SDL_Renderer* renderer);
+
+// Bed maze level functions
+void update_bed_maze(Level* level, void* data, Entity* player, std::map<SDL_Scancode, bool> key_map, float delta_time);
 
 int main(int argv, char** args)
 {
@@ -81,6 +89,8 @@ int main(int argv, char** args)
     Level outside_level;
     Level office_level;
     Level bedroom_level;
+    Level bedroom_maze_1_level;
+    Level bedroom_maze_2_level;
     Level loft_level;
     Entity player;
     memset(&kitchen_level, 0, sizeof(Level));
@@ -90,6 +100,8 @@ int main(int argv, char** args)
     memset(&outside_level, 0, sizeof(Level));
     memset(&office_level, 0, sizeof(Level));
     memset(&bedroom_level, 0, sizeof(Level));
+    memset(&bedroom_maze_1_level, 0, sizeof(Level));
+    memset(&bedroom_maze_2_level, 0, sizeof(Level));
     memset(&loft_level, 0, sizeof(Level));
     memset(&player, 0, sizeof(Entity));
 
@@ -111,8 +123,8 @@ int main(int argv, char** args)
     kitchen_level.num_collectibles = 0;
     kitchen_level.collectibles[0] = { 400, SCREEN_HEIGHT - 100, 100, 100, false, loadTexture(White_Lamb_Texture_Filename), 0, 0};
     kitchen_level.num_exits = 2;
-    kitchen_level.exits[0] = { -(100 + (float)player.width / 2), 400, 100, 200, 2 , 0, 400};
-    kitchen_level.exits[1] = { 0.0, (float)SCREEN_HEIGHT + player.height / 2, 800, 100, 1, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height };
+    kitchen_level.exits[0] = { -(100 + (float)player.width / 2), 400, 100, 200, LIVING_ROOM_LEVEL_INDEX , 0, 400};
+    kitchen_level.exits[1] = { 0.0, (float)SCREEN_HEIGHT + player.height / 2, 800, 100, BOTTOM_KITCHEN_LEVEL_INDEX, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height };
     kitchen_level.init_level = NULL;
     kitchen_level.update_level = NULL;
     kitchen_level.draw_level = NULL;
@@ -131,10 +143,10 @@ int main(int argv, char** args)
     bottom_kitchen_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
     bottom_kitchen_level.y_init = SCREEN_HEIGHT - player.height;
     bottom_kitchen_level.num_exits = 4;
-    bottom_kitchen_level.exits[0] = { 0.0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, 0, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height };
-    bottom_kitchen_level.exits[1] = { SCREEN_WIDTH + (float)player.width / 2, 100, 100, 110, 3, SCREEN_WIDTH - player.width, 100 };
-    bottom_kitchen_level.exits[2] = { 90.0, -((float)player.height + (float)player.height / 2), 120, 100, 4, 100, 0 };
-    bottom_kitchen_level.exits[3] = { 490.0, -((float)player.height + (float)player.height / 2), 120, 100, 5, 500, 0 };
+    bottom_kitchen_level.exits[0] = { 0.0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, KITCHEN_LEVEL_INDEX, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height };
+    bottom_kitchen_level.exits[1] = { SCREEN_WIDTH + (float)player.width / 2, 100, 100, 110, HALLWAY_LEVEL_INDEX, SCREEN_WIDTH - player.width, 100 };
+    bottom_kitchen_level.exits[2] = { 90.0, -((float)player.height + (float)player.height / 2), 120, 100, OUTSIDE_LEVEL_INDEX, 100, 0 };
+    bottom_kitchen_level.exits[3] = { 490.0, -((float)player.height + (float)player.height / 2), 120, 100, OFFICE_LEVEL_INDEX, 500, 0 };
     bottom_kitchen_level.init_level = NULL;
     bottom_kitchen_level.update_level = NULL;
     bottom_kitchen_level.draw_level = NULL;
@@ -153,7 +165,7 @@ int main(int argv, char** args)
     living_room_level.x_init = 0;
     living_room_level.y_init = 400;
     living_room_level.num_exits = 1;
-    living_room_level.exits[0] = { -(100 + (float)player.width / 2), 335, 100, 265, 0 , 0, 400};
+    living_room_level.exits[0] = { -(100 + (float)player.width / 2), 335, 100, 265, KITCHEN_LEVEL_INDEX , 0, 400};
     living_room_level.init_level = &init_living_room;
     living_room_level.update_level = &update_living_room;
     living_room_level.draw_level = &draw_living_room;
@@ -199,8 +211,8 @@ int main(int argv, char** args)
     hallway_level.x_init = 450;
     hallway_level.y_init = 125;
     hallway_level.num_exits = 2;
-    hallway_level.exits[0] = { 300, 125, 100, 175, 1 , 450, 125};
-    hallway_level.exits[1] = { 590, -150, 120, 100, 6 , 600, 0};
+    hallway_level.exits[0] = { 300, 125, 100, 175, BOTTOM_KITCHEN_LEVEL_INDEX, 450, 125};
+    hallway_level.exits[1] = { 590, -150, 120, 100, BEDROOM_LEVEL_INDEX , 600, 0};
     hallway_level.init_level = NULL;
     hallway_level.update_level = NULL;
     hallway_level.draw_level = NULL;
@@ -224,7 +236,7 @@ int main(int argv, char** args)
     outside_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
     outside_level.y_init = SCREEN_HEIGHT - player.height;
     outside_level.num_exits = 1;
-    outside_level.exits[0] = { 0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, 1 , SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+    outside_level.exits[0] = { 0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, BOTTOM_KITCHEN_LEVEL_INDEX, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
 
     outside_level.init_level = &init_outside;
     outside_level.update_level = &update_outside;
@@ -263,7 +275,7 @@ int main(int argv, char** args)
     office_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
     office_level.y_init = SCREEN_HEIGHT - player.height;
     office_level.num_exits = 1;
-    office_level.exits[0] = { 0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, 1 , SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+    office_level.exits[0] = { 0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, BOTTOM_KITCHEN_LEVEL_INDEX, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
     office_level.init_level = NULL;
     office_level.update_level = NULL;
     office_level.draw_level = NULL;
@@ -271,21 +283,80 @@ int main(int argv, char** args)
 
     // Bedroom level initialization
     bedroom_level.background_texture = loadTexture(Bedroom_Level_Background_Texture_Filename);
-    bedroom_level.num_pre_character_draw_obstacles = 4;
+    bedroom_level.num_pre_character_draw_obstacles = 5;
+    bedroom_level.num_post_character_draw_obstacles = 1;
     bedroom_level.pre_character_draw_obstacles[0] = {-100, 0.0, 100, 600, 0, 0, NULL };
     bedroom_level.pre_character_draw_obstacles[1] = {0.0, 0.0, 800, 200, 0, 0, NULL };
     bedroom_level.pre_character_draw_obstacles[2] = {800.0, 0.0, 100, 600, 0, 0, NULL };
-    bedroom_level.pre_character_draw_obstacles[3] = {200.0, 200.0, 400, 200, 0, 0, NULL };
+    bedroom_level.pre_character_draw_obstacles[3] = {200.0, 200.0, 140, 200, 0, 0, NULL };
+    bedroom_level.pre_character_draw_obstacles[4] = {460.0, 200.0, 140, 200, 0, 0, NULL };
+    bedroom_level.post_character_draw_obstacles[0] = {200.0, 201.0, 0, 0, 0, 0, loadTexture(Bed_Maze_Entrance_Texture_Filename) };
     bedroom_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
     bedroom_level.y_init = SCREEN_HEIGHT - player.height;
-    bedroom_level.num_exits = 1;
-    bedroom_level.exits[0] = { 0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, 3, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+    bedroom_level.num_exits = 2;
+    bedroom_level.exits[0] = { 0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, HALLWAY_LEVEL_INDEX, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+    bedroom_level.exits[1] = { SCREEN_WIDTH / 2 - (float)player.width / 2, 200, 100, 100, BEDROOM_MAZE_1_LEVEL_INDEX, SCREEN_WIDTH / 2 - player.width / 2, 400};
     bedroom_level.init_level = NULL;
     bedroom_level.update_level = NULL;
     bedroom_level.draw_level = NULL;
     bedroom_level.level_data = NULL;
+    
+    // Bedroom Maze 1 initialization
+    bedroom_maze_1_level.background_texture = loadTexture(Bedroom_Level_Maze_1_Background_Texture_Filename);
+    bedroom_maze_1_level.num_pre_character_draw_obstacles = 12;
+    bedroom_maze_1_level.num_post_character_draw_obstacles = 1;
+    bedroom_maze_1_level.pre_character_draw_obstacles[0] = {-100, 0.0, 100, 600, 0, 0, NULL };
+    bedroom_maze_1_level.pre_character_draw_obstacles[1] = {0.0, -100.0, 340, 100, 0, 0, NULL };
+    bedroom_maze_1_level.pre_character_draw_obstacles[2] = {460.0, -100.0, 340, 100, 0, 0, NULL };
+    bedroom_maze_1_level.pre_character_draw_obstacles[3] = {800.0, 0.0, 100, 600, 0, 0, NULL };
+    bedroom_maze_1_level.pre_character_draw_obstacles[4] = {0.0, 600.0, 340, 100, 0, 0, NULL };
+    bedroom_maze_1_level.pre_character_draw_obstacles[5] = {460.0, 600.0, 340, 100, 0, 0, NULL };
+    bedroom_maze_1_level.pre_character_draw_obstacles[6] = {0.0, 0.0, 100, 330, 0, 0, NULL };
+    bedroom_maze_1_level.pre_character_draw_obstacles[7] = {0.0, 450.0, 340, 150, 0, 0, NULL };
+    bedroom_maze_1_level.pre_character_draw_obstacles[8] = {220.0, 0.0, 120, 330, 0, 0, NULL };
+    bedroom_maze_1_level.pre_character_draw_obstacles[9] = {340.0, 170.0, 330, 110, 0, 0, NULL };
+    bedroom_maze_1_level.pre_character_draw_obstacles[10] = {460.0, 0.0, 210, 50, 0, 0, NULL };
+    bedroom_maze_1_level.pre_character_draw_obstacles[11] = {460.0, 400.0, 210, 200, 0, 0, NULL };
+    bedroom_maze_1_level.post_character_draw_obstacles[0] = {0.0, 0.0, 0, 0, -750, -550, loadTexture(Bed_Maze_Spotlight_Texture_Fileanme) };
+    bedroom_maze_1_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
+    bedroom_maze_1_level.y_init = SCREEN_HEIGHT - player.height;
+    bedroom_maze_1_level.num_exits = 2;
+    bedroom_maze_1_level.exits[0] = { 0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, BEDROOM_LEVEL_INDEX, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+    bedroom_maze_1_level.exits[1] = { 0, -100, 800, 100, BEDROOM_MAZE_2_LEVEL_INDEX, SCREEN_WIDTH / 2 - player.width / 2, 0 };
+    bedroom_maze_1_level.init_level = NULL;
+    bedroom_maze_1_level.update_level = &update_bed_maze;
+    bedroom_maze_1_level.draw_level = NULL;
+    bedroom_maze_1_level.level_data = NULL;
 
-    int current_level_index = 0;
+    // Bedroom Maze 2 initialization
+    bedroom_maze_2_level.background_texture = loadTexture(Bedroom_Level_Maze_2_Background_Texture_Filename);
+    bedroom_maze_2_level.num_collectibles = 1;
+    bedroom_maze_2_level.collectibles[0] = { 170.0, 380.0, 100, 100, false, loadTexture(Purple_Lamb_Texture_Filename), -50, 0};
+    bedroom_maze_2_level.num_pre_character_draw_obstacles = 12;
+    bedroom_maze_2_level.num_post_character_draw_obstacles = 1;
+    bedroom_maze_2_level.pre_character_draw_obstacles[0] = {-100, 0.0, 100, 600, 0, 0, NULL };
+    bedroom_maze_2_level.pre_character_draw_obstacles[1] = {0.0, -100.0, 800, 100, 0, 0, NULL };
+    bedroom_maze_2_level.pre_character_draw_obstacles[2] = {800.0, 0.0, 100, 600, 0, 0, NULL };
+    bedroom_maze_2_level.pre_character_draw_obstacles[3] = {0.0, 600.0, 340, 100, 0, 0, NULL };
+    bedroom_maze_2_level.pre_character_draw_obstacles[4] = {460.0, 600.0, 340, 100, 0, 0, NULL };
+    bedroom_maze_2_level.pre_character_draw_obstacles[5] = {120.0, 120.0, 100, 40, 0, 0, NULL };
+    bedroom_maze_2_level.pre_character_draw_obstacles[6] = {120.0, 280.0, 100, 100, 0, 0, NULL };
+    bedroom_maze_2_level.pre_character_draw_obstacles[7] = {0.0, 500.0, 220, 100, 0, 0, NULL };
+    bedroom_maze_2_level.pre_character_draw_obstacles[8] = {220.0, 330.0, 120, 270, 0, 0, NULL };
+    bedroom_maze_2_level.pre_character_draw_obstacles[9] = {340.0, 120.0, 100, 370, 0, 0, NULL };
+    bedroom_maze_2_level.pre_character_draw_obstacles[10] = {440.0, 120.0, 240, 120, 0, 0, NULL };
+    bedroom_maze_2_level.pre_character_draw_obstacles[11] = {440.0, 360.0, 240, 130, 0, 0, NULL };
+    bedroom_maze_2_level.post_character_draw_obstacles[0] = {0.0, 0.0, 0, 0, -750, -550, loadTexture(Bed_Maze_Spotlight_Texture_Fileanme) };
+    bedroom_maze_2_level.x_init = SCREEN_WIDTH / 2 - player.width / 2;
+    bedroom_maze_2_level.y_init = SCREEN_HEIGHT - player.height;
+    bedroom_maze_2_level.num_exits = 1;
+    bedroom_maze_2_level.exits[0] = { 0, SCREEN_HEIGHT + (float)player.height / 2, 800, 100, BEDROOM_MAZE_1_LEVEL_INDEX, SCREEN_WIDTH / 2 - player.width / 2, SCREEN_HEIGHT - player.height};
+    bedroom_maze_2_level.init_level = NULL;
+    bedroom_maze_2_level.update_level = &update_bed_maze;
+    bedroom_maze_2_level.draw_level = NULL;
+    bedroom_maze_2_level.level_data = NULL;
+
+    int current_level_index = 6;
     Level levels[MAX_NUM_LEVELS];
     levels[0] = kitchen_level;
     levels[1] = bottom_kitchen_level;
@@ -294,6 +365,8 @@ int main(int argv, char** args)
     levels[4] = outside_level;
     levels[5] = office_level;
     levels[6] = bedroom_level;
+    levels[7] = bedroom_maze_1_level;
+    levels[8] = bedroom_maze_2_level;
 
     player.x = levels[current_level_index].x_init;
     player.y = levels[current_level_index].y_init;
@@ -880,6 +953,13 @@ void update_living_room(Level* level, void* data, Entity* player, std::map<SDL_S
     }
 
     living_room_level_data->counter++;
+}
+
+
+void update_bed_maze(Level* level, void* data, Entity* player, std::map<SDL_Scancode, bool> key_map, float delta_time)
+{
+    level->post_character_draw_obstacles[0].x = player->x; // TODO: Move this into level data. It might be messing with collision detection.
+    level->post_character_draw_obstacles[0].y = player->y;
 }
 
 
