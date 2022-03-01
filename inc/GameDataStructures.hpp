@@ -81,7 +81,8 @@ struct Level
     float y_init;
     void (*init_level)(Level*, void*);
     void (*update_level)(Level*, void*, Entity*, std::map<SDL_Scancode, bool>, float);
-    void (*draw_level)(Level*, void*, SDL_Renderer*);
+    void (*pre_character_draw_level)(Level*, void*, SDL_Renderer*);
+    void (*post_character_draw_level)(Level*, void*, SDL_Renderer*);
     void* level_data;
 };
 
@@ -93,6 +94,7 @@ struct OutsideLevelData
     int bush_index;
     int selected_bush;
     Animation bush_animation;
+    Animation bush_death_animation;
     SDL_Texture* bush_texture;
     SDL_Texture* dead_bush_texture_1;
     SDL_Texture* dead_bush_texture_2;
@@ -112,6 +114,37 @@ struct LivingRoomLevelData
     bool complete;
 };
 
+struct BedroomMazeLevelData
+{
+    float spotlight_pos_x;
+    float spotlight_pos_y;
+    SDL_Texture* spolight_texture;
+};
+
+struct OfficeLevelData
+{
+    int counter;
+    SDL_Texture* computer_face_1_texture;
+    SDL_Texture* computer_face_2_texture;
+    SDL_Texture* current_texture;
+    bool face_1_active;
+    bool complete;
+};
+
+struct ComputerLevelData
+{
+    int counter;
+    SDL_Texture* computer_face_1_texture;
+    SDL_Texture* computer_face_2_texture;
+    SDL_Texture* computer_face_3_texture;
+    bool face_1_active;
+    float ball_velocity_x;
+    float ball_velocity_y;
+    int bricks_remaining;
+    int computer_pain_counter;
+    bool complete;
+};
+
 typedef struct Animation Animation;
 typedef struct Obstacle Obstacle;
 typedef struct Entity Entity;
@@ -119,5 +152,8 @@ typedef struct Collectible Collectible;
 typedef struct Level Level;
 typedef struct OutsideLevelData OutsideLevelData;
 typedef struct LivingRoomLevelData LivingRoomLevelData;
+typedef struct BedroomMazeLevelData BedroomMazeLevelData;
+typedef struct OfficeLevelData OfficeLevelData;
+typedef struct ComputerLevelData ComputerLevelData;
 
 #endif

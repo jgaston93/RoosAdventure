@@ -24,5 +24,6 @@ const int OFFICE_LEVEL_INDEX = 5;
 const int BEDROOM_LEVEL_INDEX = 6;
 const int BEDROOM_MAZE_1_LEVEL_INDEX = 7;
 const int BEDROOM_MAZE_2_LEVEL_INDEX = 8;
+const int COMPUTER_LEVEL_INDEX = 9;
 
 #endif
