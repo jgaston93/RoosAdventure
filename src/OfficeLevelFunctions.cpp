@@ -1,7 +1,7 @@
 #include "OfficeLevelFunctions.hpp"
 #include "GameUtilityFunctions.hpp"
 
-void init_office(Level* level, void* data)
+void init_office(Level* level, void* data, Entity* player)
 {
     OfficeLevelData* office_level_data = (OfficeLevelData*)data;
 
@@ -9,6 +9,7 @@ void init_office(Level* level, void* data)
     {
         office_level_data->complete = true;
         level->num_exits = 1;
+        level->num_post_character_draw_obstacles = 0;
     }
 
     if(!office_level_data->complete)
@@ -21,6 +22,8 @@ void init_office(Level* level, void* data)
 void update_office(Level* level, void* data, Entity* player, std::map<SDL_Scancode, bool> key_map, float delta_time)
 {
     OfficeLevelData* office_level_data = (OfficeLevelData*)data;
+
+    level->post_character_draw_obstacles[0].texture = updateAnimation(&office_level_data->electric_cage_animation);
 
     if(office_level_data->counter % 15 == 0)
     {

@@ -1,7 +1,7 @@
 #include "ComputerLevelFunctions.hpp"
 #include "CollisionCheckingFunctions.hpp"
 
-void init_computer(Level* level, void* data)
+void init_computer(Level* level, void* data, Entity* player)
 {
     ComputerLevelData* computer_level_data = (ComputerLevelData*)data;
     
@@ -220,7 +220,7 @@ void update_computer(Level* level, void* data, Entity* player, std::map<SDL_Scan
     }
     else if(ball->y + ball->height > SCREEN_HEIGHT)
     {
-        init_computer(level, data);
+        init_computer(level, data, player);
     }
 
     if(y_bounce)

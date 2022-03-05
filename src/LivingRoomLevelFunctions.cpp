@@ -2,7 +2,7 @@
 #include "CollisionCheckingFunctions.hpp"
 #include "GameUtilityFunctions.hpp"
 
-void init_living_room(Level* level, void* data)
+void init_living_room(Level* level, void* data, Entity* player)
 {
     LivingRoomLevelData* living_room_level_data = (LivingRoomLevelData*)data;
 
@@ -76,7 +76,7 @@ void update_living_room(Level* level, void* data, Entity* player, std::map<SDL_S
             bool player_collision = checkXYCollision(*player, level->post_character_draw_obstacles[0], delta_time);
             if(player_collision)
             {
-                level->init_level(level, living_room_level_data);
+                level->init_level(level, living_room_level_data, player);
                 player->x = 0;
                 player->y = 400;
                 // level_transition_counter = MAX_NUM_LEVEL_TRANSITION_FRAMES;
@@ -116,7 +116,7 @@ void update_living_room(Level* level, void* data, Entity* player, std::map<SDL_S
             bool player_collision = checkXYCollision(*player, level->post_character_draw_obstacles[0], delta_time);
             if(player_collision)
             {
-                level->init_level(level, living_room_level_data);
+                level->init_level(level, living_room_level_data, player);
                 player->x = 0;
                 player->y = 400;
                 // level_transition_counter = MAX_NUM_LEVEL_TRANSITION_FRAMES;

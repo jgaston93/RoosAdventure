@@ -11,7 +11,7 @@ const int MAX_NUM_LEVELS = 20;
 const int MAX_NUM_EXITS = 10;
 const int MS_PER_FRAME = 16;
 const int MAX_NUM_LEVEL_TRANSITION_FRAMES = 30;
-const int MAX_NUM_VACCUUM_CORD_POINTS = 40;
+const int MAX_NUM_VACCUUM_CORD_POINTS = 20;
 const int MAX_NUM_ANIMATIONS = 10;
 const int MAX_NUM_FRAMES_PER_ANIMATION = 10;
 
@@ -25,5 +25,6 @@ const int BEDROOM_LEVEL_INDEX = 6;
 const int BEDROOM_MAZE_1_LEVEL_INDEX = 7;
 const int BEDROOM_MAZE_2_LEVEL_INDEX = 8;
 const int COMPUTER_LEVEL_INDEX = 9;
+const int DOOR_LEVEL_INDEX = 10;
 
 #endif

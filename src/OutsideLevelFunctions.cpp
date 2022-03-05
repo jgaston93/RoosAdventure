@@ -2,7 +2,7 @@
 #include "GameUtilityFunctions.hpp"
 #include "CollisionCheckingFunctions.hpp"
 
-void init_outside(Level* level, void* data)
+void init_outside(Level* level, void* data, Entity* player)
 {
     OutsideLevelData* outside_level_data = (OutsideLevelData*)data;
 

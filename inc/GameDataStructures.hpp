@@ -41,6 +41,7 @@ struct Entity
     int idle_counter;
     int idle_threshold;
     int animation_counter;
+    bool collected[4];
 };
 
 struct Collectible
@@ -79,7 +80,7 @@ struct Level
     Exit exits[MAX_NUM_EXITS];
     float x_init;
     float y_init;
-    void (*init_level)(Level*, void*);
+    void (*init_level)(Level*, void*, Entity*);
     void (*update_level)(Level*, void*, Entity*, std::map<SDL_Scancode, bool>, float);
     void (*pre_character_draw_level)(Level*, void*, SDL_Renderer*);
     void (*post_character_draw_level)(Level*, void*, SDL_Renderer*);
@@ -128,6 +129,7 @@ struct OfficeLevelData
     SDL_Texture* computer_face_2_texture;
     SDL_Texture* current_texture;
     bool face_1_active;
+    Animation electric_cage_animation;
     bool complete;
 };
 
@@ -145,6 +147,20 @@ struct ComputerLevelData
     bool complete;
 };
 
+struct DoorLevelData
+{
+    int counter;
+    SDL_Texture* background_1;
+    SDL_Texture* background_2;
+    bool background_1_active;
+
+};
+
+struct BedroomLevelData
+{
+    SDL_Texture* bed_maze_entrance_closed_texture;
+};
+
 typedef struct Animation Animation;
 typedef struct Obstacle Obstacle;
 typedef struct Entity Entity;
@@ -155,5 +171,7 @@ typedef struct LivingRoomLevelData LivingRoomLevelData;
 typedef struct BedroomMazeLevelData BedroomMazeLevelData;
 typedef struct OfficeLevelData OfficeLevelData;
 typedef struct ComputerLevelData ComputerLevelData;
+typedef struct DoorLevelData DoorLevelData;
+typedef struct BedroomLevelData BedroomLevelData;
 
 #endif
