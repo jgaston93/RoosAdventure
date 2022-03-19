@@ -76,12 +76,27 @@ void update_computer(Level* level, void* data, Entity* player, std::map<SDL_Scan
             }
             computer_level_data->face_1_active = !computer_level_data->face_1_active;
         }
+        else if(computer_level_data->counter % 30 == 0)
+        {
+            if(computer_level_data->ball_velocity_x != 0 && computer_level_data->ball_velocity_y != 0)
+            {
+                if(computer_level_data->ball_1_texture_active)
+                {
+                    level->post_character_draw_obstacles[1].texture = computer_level_data->ball_2_texture;
+                }
+                else
+                {
+                    level->post_character_draw_obstacles[1].texture = computer_level_data->ball_1_texture;
+                }
+                computer_level_data->ball_1_texture_active = !computer_level_data->ball_1_texture_active;
+            }
+        }
     }
     computer_level_data->counter++;
 
     float paddle_velocity = 0;
-    float paddle_speed = 100;
-    float ball_speed = 100;
+    float paddle_speed = 150;
+    float ball_speed = 200;
     if((!key_map[SDL_SCANCODE_LEFT] && !key_map[SDL_SCANCODE_RIGHT]) || (key_map[SDL_SCANCODE_LEFT] && key_map[SDL_SCANCODE_RIGHT]))
     {
         paddle_velocity = 0;
@@ -106,7 +121,22 @@ void update_computer(Level* level, void* data, Entity* player, std::map<SDL_Scan
     }
 
     Obstacle* paddle = &level->post_character_draw_obstacles[0];
-    paddle->x += paddle_velocity * delta_time;
+    Obstacle* ball = &level->post_character_draw_obstacles[1];
+    float x_min_time = 1;
+    float y_min_time = 1;
+
+    bool x_collision = checkXCollision(paddle->x, paddle->y, paddle->width, paddle->height, ball->x, ball->y, ball->width, ball->height, delta_time, paddle_velocity);
+    if(x_collision)
+    {
+        float dx = calculateXDistance(*paddle, *ball);
+        float x_time = abs(dx / paddle_velocity);
+        if(x_time < x_min_time)
+        {
+            x_min_time = x_time;
+        }
+    }
+
+    paddle->x += paddle_velocity * delta_time * x_min_time;
     if(paddle->x < 0)
     {
         paddle->x = 0;
@@ -116,15 +146,14 @@ void update_computer(Level* level, void* data, Entity* player, std::map<SDL_Scan
         paddle->x = SCREEN_WIDTH - paddle->width;
     }
 
-    float x_min_time = 1;
-    float y_min_time = 1;
+    x_min_time = 1;
+    y_min_time = 1;
     bool x_bounce = false;
     bool y_bounce = false;
+    bool y_bounce_paddle = false;
 
     bool brick_collision = false;
     int brick_index = 0;
-
-    Obstacle* ball = &level->post_character_draw_obstacles[1];
 
     // Move ball in X axis
     for(int i = 0; i < level->num_pre_character_draw_obstacles; i++)
@@ -145,7 +174,7 @@ void update_computer(Level* level, void* data, Entity* player, std::map<SDL_Scan
         }
     }
 
-    bool x_collision = checkXCollision(ball->x, ball->y, ball->width, ball->height, paddle->x, paddle->y, paddle->width, paddle->height, delta_time, computer_level_data->ball_velocity_x);
+    x_collision = checkXCollision(ball->x, ball->y, ball->width, ball->height, paddle->x, paddle->y, paddle->width, paddle->height, delta_time, computer_level_data->ball_velocity_x);
     if(x_collision)
     {
         float dx = calculateXDistance(*ball, *paddle);
@@ -210,6 +239,7 @@ void update_computer(Level* level, void* data, Entity* player, std::map<SDL_Scan
             y_min_time = y_time;
         }
         y_bounce = true;
+        y_bounce_paddle = true;
     }
 
     ball->y += computer_level_data->ball_velocity_y * delta_time * y_min_time;
@@ -232,6 +262,18 @@ void update_computer(Level* level, void* data, Entity* player, std::map<SDL_Scan
         else
         {
             computer_level_data->ball_velocity_y = ball_speed;
+        }
+
+        if(y_bounce_paddle)
+        {
+            if(computer_level_data->ball_velocity_x > 0 && paddle_velocity > 0 || computer_level_data->ball_velocity_x < 0 && paddle_velocity < 0)
+            {
+                computer_level_data->ball_velocity_x *= 1.2;
+            }
+            else if(computer_level_data->ball_velocity_x > 0 && paddle_velocity < 0 || computer_level_data->ball_velocity_x < 0 && paddle_velocity > 0)
+            {
+                computer_level_data->ball_velocity_x *= .8;
+            }
         }
     }
 

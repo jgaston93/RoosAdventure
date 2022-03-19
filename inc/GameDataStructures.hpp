@@ -107,9 +107,16 @@ struct LivingRoomLevelData
     int counter;
     float vaccuum_final_x_position;
     float vaccuum_final_y_position;
+    float prev_position_x;
+    float prev_position_y;
+    SDL_Texture* vaccuum_texture;
+    bool facing_right;
     Animation vaccuum_animation;
     Animation vaccuum_short_circuit_animation;
     Animation vaccuum_smoking_animation;
+    Animation vaccuum_explosion_animation;
+    Animation outlet_spark_animation;
+    int explosion_counter;
     int num_vaccuum_cord_points;
     int vaccuum_cord_points[MAX_NUM_VACCUUM_CORD_POINTS * 2];
     bool complete;
@@ -136,6 +143,9 @@ struct OfficeLevelData
 struct ComputerLevelData
 {
     int counter;
+    SDL_Texture* ball_1_texture;
+    SDL_Texture* ball_2_texture;
+    bool ball_1_texture_active;
     SDL_Texture* computer_face_1_texture;
     SDL_Texture* computer_face_2_texture;
     SDL_Texture* computer_face_3_texture;
