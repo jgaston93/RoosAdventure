@@ -4,23 +4,9 @@
 		{
 			"type": "shell",
 			"label": "SDL2",
-			"command": "g++.exe",
-			"args": [
-				"-g",
-				"src/*.cpp",
-				"-o",
-				"build/game.exe",
-				"-Iinc",
-				"-I../SDL2-2.0.18/x86_64-w64-mingw32/include",
-				"-L../SDL2-2.0.18/x86_64-w64-mingw32/lib",
-				"-lmingw32",
-				"-lSDL2main",
-				"-lSDL2",
-				"-lSDL2_image",
-				"-mwindows"
-			],
+			"command": "make.exe",
 			"options": {
-				"cwd": "${workspaceFolder}"
+				"cwd": "${workspaceFolder}/build"
 			},
 			"problemMatcher": [
 				"$gcc"

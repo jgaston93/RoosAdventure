@@ -2,6 +2,78 @@
 #include "GameUtilityFunctions.hpp"
 #include "CollisionCheckingFunctions.hpp"
 
+char Outside_Level_Background_Texture_Filename[] = "assets/outside_background.png";
+char Bush_Texture_Filename[] = "assets/bush.png";
+char Angry_Bush_1_Texture_Filename[] = "assets/angry_bush_1.png";
+char Angry_Bush_2_Texture_Filename[] = "assets/angry_bush_2.png";
+char Dead_Bush_1_Texture_Filename[] = "assets/dead_bush_1.png";
+char Dead_Bush_2_Texture_Filename[] = "assets/dead_bush_2.png";
+char Dead_Bush_3_Texture_Filename[] = "assets/dead_bush_3.png";
+char Dead_Bush_4_Texture_Filename[] = "assets/dead_bush_4.png";
+char Dead_Bush_5_Texture_Filename[] = "assets/dead_bush_5.png";
+char Purple_Lamb_Texture_Filename[] = "assets/purple_lamb.png";
+
+void setup_outside(Level* level, SDL_Renderer* renderer)
+{
+    level->background_texture = loadTexture(Outside_Level_Background_Texture_Filename, renderer);
+    level->num_pre_character_draw_obstacles = 8;
+    level->num_post_character_draw_obstacles = 0;
+    level->num_collectibles = 0;
+    level->collectibles[0] = { 355.0, 325.0, 80, 2, false, loadTexture(Purple_Lamb_Texture_Filename, renderer), 0, 0};
+    level->pre_character_draw_obstacles[0] = {-100, 0.0, 100, 600, 0, 0, NULL };
+    level->pre_character_draw_obstacles[1] = {0.0, 0.0, 800, 100, 0, 0, NULL };
+    level->pre_character_draw_obstacles[2] = {800.0, 0.0, 100, 600, 0, 0, NULL };
+    SDL_Texture* bush_texture = loadTexture(Bush_Texture_Filename, renderer);
+    level->pre_character_draw_obstacles[3] = {105.0, 225.0, 80, 22, 0, -20, bush_texture };
+    level->pre_character_draw_obstacles[4] = {605.0, 225.0, 80, 22, 0, -20, bush_texture };
+    level->pre_character_draw_obstacles[5] = {355.0, 325.0, 80, 22, 0, -20, bush_texture };
+    level->pre_character_draw_obstacles[6] = {105.0, 425.0, 80, 22, 0, -20, bush_texture };
+    level->pre_character_draw_obstacles[7] = {605.0, 425.0, 80, 22, 0, -20, bush_texture };
+    level->x_init = SCREEN_WIDTH / 2 - PLAYER_WIDTH / 2;
+    level->y_init = SCREEN_HEIGHT - PLAYER_HEIGHT;
+    level->num_exits = 1;
+    level->exits[0] = { 0, SCREEN_HEIGHT + (float)PLAYER_HEIGHT / 2, 800, 100, BOTTOM_KITCHEN_LEVEL_INDEX, SCREEN_WIDTH / 2 - PLAYER_WIDTH / 2, SCREEN_HEIGHT - PLAYER_HEIGHT};
+    level->init_level = &init_outside;
+    level->update_level = &update_outside;
+    level->pre_character_draw_level = NULL;
+    level->post_character_draw_level = NULL;
+    OutsideLevelData outside_level_data;
+    outside_level_data.num_bushes = 5;
+    outside_level_data.bush_order[0] = 0;
+    outside_level_data.bush_order[1] = 1;
+    outside_level_data.bush_order[2] = 2;
+    outside_level_data.bush_order[3] = 3;
+    outside_level_data.bush_order[4] = 4;
+    outside_level_data.bush_index = 0;
+    outside_level_data.counter = 0;
+    outside_level_data.selected_bush = 0;
+    outside_level_data.complete = false;
+    Animation bush_animation;
+    bush_animation.animation_counter = 0;
+    bush_animation.animation_speed = 15;
+    bush_animation.current_texture_index = 0;
+    bush_animation.num_textures = 2;
+    bush_animation.textures[0] = loadTexture(Angry_Bush_1_Texture_Filename, renderer);
+    bush_animation.textures[1] = loadTexture(Angry_Bush_2_Texture_Filename, renderer);
+    outside_level_data.bush_animation = bush_animation;
+    Animation bush_death_animation;
+    bush_death_animation.animation_counter = 0;
+    bush_death_animation.animation_speed = 15;
+    bush_death_animation.current_texture_index = 0;
+    bush_death_animation.num_textures = 4;
+    bush_death_animation.textures[0] = loadTexture(Dead_Bush_1_Texture_Filename, renderer);
+    bush_death_animation.textures[1] = loadTexture(Dead_Bush_2_Texture_Filename, renderer);
+    bush_death_animation.textures[2] = loadTexture(Dead_Bush_3_Texture_Filename, renderer);
+    bush_death_animation.textures[3] = loadTexture(Dead_Bush_4_Texture_Filename, renderer);
+    bush_death_animation.textures[4] = loadTexture(Dead_Bush_5_Texture_Filename, renderer);
+    outside_level_data.bush_death_animation = bush_death_animation;
+    outside_level_data.bush_texture = bush_texture;
+    outside_level_data.dead_bush_texture_1 = loadTexture(Dead_Bush_1_Texture_Filename, renderer);
+    outside_level_data.dead_bush_texture_2 = loadTexture(Dead_Bush_5_Texture_Filename, renderer);
+    level->level_data = new OutsideLevelData();
+    memcpy(level->level_data, &outside_level_data, sizeof(OutsideLevelData));
+}
+
 void init_outside(Level* level, void* data, Entity* player)
 {
     OutsideLevelData* outside_level_data = (OutsideLevelData*)data;

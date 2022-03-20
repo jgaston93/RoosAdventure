@@ -2,6 +2,93 @@
 #include "CollisionCheckingFunctions.hpp"
 #include "GameUtilityFunctions.hpp"
 
+char Living_Room_Level_Background_Texture_Filename[] = "assets/living_room_level_background.png";
+char Box_Obstacle_Texture_Filename[] = "assets/box_obstacle.png";
+char Vaccuum_1_Texture_Filename[] = "assets/vaccuum_1.png";
+char Vaccuum_2_Texture_Filename[] = "assets/vaccuum_2.png";
+char Vaccuum_3_Texture_Filename[] = "assets/vaccuum_3.png";
+char Vaccuum_4_Texture_Filename[] = "assets/vaccuum_4.png";
+char Vaccuum_5_Texture_Filename[] = "assets/vaccuum_5.png";
+char Vaccuum_6_Texture_Filename[] = "assets/vaccuum_6.png";
+char Vaccuum_7_Texture_Filename[] = "assets/vaccuum_7.png";
+char Vaccuum_8_Texture_Filename[] = "assets/vaccuum_8.png";
+char Outlet_Spark_1_Texture_Filename[] = "assets/outlet_spark_1.png";
+char Outlet_Spark_2_Texture_Filename[] = "assets/outlet_spark_2.png";
+char White_Lamb_Texture_Filename[] = "assets/white_lamb.png";
+
+void setup_living_room(Level* level, SDL_Renderer* renderer)
+{
+    level->background_texture = loadTexture(Living_Room_Level_Background_Texture_Filename, renderer);
+    level->num_pre_character_draw_obstacles = 9;
+    level->num_post_character_draw_obstacles = 1;
+    level->pre_character_draw_obstacles[0] = { 0.0, 0.0, 260, 255, 0, 0, NULL };
+    level->pre_character_draw_obstacles[1] = { 260.0, 0.0, 300, 210, 0, 0, NULL };
+    level->pre_character_draw_obstacles[2] = { 560.0, 0.0, 50, 255, 0, 0, NULL };
+    level->pre_character_draw_obstacles[3] = { 615.0, 0.0, 185, 70, 0, 0, NULL };
+    level->pre_character_draw_obstacles[4] = { 0.0, 600.0, 800, 100, 0, 0, NULL };
+    level->pre_character_draw_obstacles[5] = { 800.0, 0.0, 100, 600, 0, 0, NULL };
+    level->pre_character_draw_obstacles[6] = { 135.0, 335.0, 90, 90, -5, -5, loadTexture(Box_Obstacle_Texture_Filename, renderer) };
+    level->pre_character_draw_obstacles[7] = { 355.0, 385.0, 90, 90, -5, -5, loadTexture(Box_Obstacle_Texture_Filename, renderer) };
+    level->pre_character_draw_obstacles[8] = { 575.0, 335.0, 90, 90, -5, -5, loadTexture(Box_Obstacle_Texture_Filename, renderer) };
+    level->post_character_draw_obstacles[0] = {620.0, 115.0, 100, 20, 0, -80, NULL };
+    level->x_init = 0;
+    level->y_init = 400;
+    level->num_collectibles = 0;
+    level->collectibles[0] = { -100, -100, 10, 10, false, loadTexture(White_Lamb_Texture_Filename, renderer), -45, -45};
+    level->num_exits = 1;
+    level->exits[0] = { -(100 + (float)PLAYER_WIDTH / 2), 210, 100, 390, KITCHEN_LEVEL_INDEX , 0, 400};
+    level->init_level = &init_living_room;
+    level->update_level = &update_living_room;
+    level->pre_character_draw_level = &draw_living_room;
+    level->post_character_draw_level = &draw_vaccuum;
+    LivingRoomLevelData living_room_level_data;
+    living_room_level_data.counter = 0;
+    living_room_level_data.complete = false;
+    living_room_level_data.num_vaccuum_cord_points = 0;
+    Animation vaccuum_animation;
+    vaccuum_animation.animation_counter = 0;
+    vaccuum_animation.animation_speed = 15;
+    vaccuum_animation.current_texture_index = 0;
+    vaccuum_animation.num_textures = 2;
+    vaccuum_animation.textures[0] = loadTexture(Vaccuum_1_Texture_Filename, renderer);
+    vaccuum_animation.textures[1] = loadTexture(Vaccuum_2_Texture_Filename, renderer);
+    living_room_level_data.vaccuum_animation = vaccuum_animation;
+    Animation vaccuum_short_circuit_animation;
+    vaccuum_short_circuit_animation.animation_counter = 0;
+    vaccuum_short_circuit_animation.animation_speed = 15;
+    vaccuum_short_circuit_animation.current_texture_index = 0;
+    vaccuum_short_circuit_animation.num_textures = 2;
+    vaccuum_short_circuit_animation.textures[0] = loadTexture(Vaccuum_3_Texture_Filename, renderer);
+    vaccuum_short_circuit_animation.textures[1] = loadTexture(Vaccuum_4_Texture_Filename, renderer);
+    living_room_level_data.vaccuum_short_circuit_animation = vaccuum_short_circuit_animation;
+    Animation vaccuum_smoking_animation;
+    vaccuum_smoking_animation.animation_counter = 0;
+    vaccuum_smoking_animation.animation_speed = 30;
+    vaccuum_smoking_animation.current_texture_index = 0;
+    vaccuum_smoking_animation.num_textures = 2;
+    vaccuum_smoking_animation.textures[0] = loadTexture(Vaccuum_5_Texture_Filename, renderer);
+    vaccuum_smoking_animation.textures[1] = loadTexture(Vaccuum_6_Texture_Filename, renderer);
+    living_room_level_data.vaccuum_smoking_animation = vaccuum_smoking_animation;
+    Animation vaccuum_explosion_animation;
+    vaccuum_explosion_animation.animation_counter = 0;
+    vaccuum_explosion_animation.animation_speed = 10;
+    vaccuum_explosion_animation.current_texture_index = 0;
+    vaccuum_explosion_animation.num_textures = 2;
+    vaccuum_explosion_animation.textures[0] = loadTexture(Vaccuum_7_Texture_Filename, renderer);
+    vaccuum_explosion_animation.textures[1] = loadTexture(Vaccuum_8_Texture_Filename, renderer);
+    living_room_level_data.vaccuum_explosion_animation = vaccuum_explosion_animation;
+    Animation outlet_spark_animation;
+    outlet_spark_animation.animation_counter = 0;
+    outlet_spark_animation.animation_speed = 10;
+    outlet_spark_animation.current_texture_index = 0;
+    outlet_spark_animation.num_textures = 2;
+    outlet_spark_animation.textures[0] = loadTexture(Outlet_Spark_1_Texture_Filename, renderer);
+    outlet_spark_animation.textures[1] = loadTexture(Outlet_Spark_2_Texture_Filename, renderer);
+    living_room_level_data.outlet_spark_animation = outlet_spark_animation;
+    level->level_data = new LivingRoomLevelData();
+    memcpy(level->level_data, &living_room_level_data, sizeof(LivingRoomLevelData));
+}
+
 void init_living_room(Level* level, void* data, Entity* player)
 {
     LivingRoomLevelData* living_room_level_data = (LivingRoomLevelData*)data;

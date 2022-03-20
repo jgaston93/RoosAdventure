@@ -8,5 +8,6 @@ void blit(SDL_Texture* texture, int x, int y, int x_offset, int y_offset, SDL_Re
 void blit(SDL_Texture* texture, int x, int y, bool facing_right, SDL_Renderer* renderer);
 void blit(SDL_Texture* texture, int x, int y, bool facing_right, int x_offset, int y_offset, SDL_Renderer* renderer);
 SDL_Texture* updateAnimation(Animation* animation);
+SDL_Texture *loadTexture(char *filename, SDL_Renderer* renderer);
 
 #endif

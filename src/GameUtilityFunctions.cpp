@@ -1,4 +1,5 @@
 #include "GameUtilityFunctions.hpp"
+#include <SDL2/SDL_image.h>
 
 void blit(SDL_Texture *texture, int x, int y, int x_offset, int y_offset, SDL_Renderer* renderer)
 {
@@ -61,5 +62,12 @@ SDL_Texture* updateAnimation(Animation* animation)
         animation->animation_counter++;
     }
 
+    return texture;
+}
+
+SDL_Texture *loadTexture(char *filename, SDL_Renderer* renderer)
+{
+    SDL_Texture *texture;
+    texture = IMG_LoadTexture(renderer, filename);
     return texture;
 }

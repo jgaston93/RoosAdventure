@@ -3,6 +3,7 @@
 
 #include "GameDataStructures.hpp"
 
+void setup_door(Level* level, SDL_Renderer* renderer);
 void init_door(Level* level, void* data, Entity* player);
 void update_door(Level* level, void* data, Entity* player, std::map<SDL_Scancode, bool> key_map, float delta_time);
 

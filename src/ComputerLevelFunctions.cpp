@@ -1,5 +1,54 @@
 #include "ComputerLevelFunctions.hpp"
 #include "CollisionCheckingFunctions.hpp"
+#include "GameUtilityFunctions.hpp"
+
+char Computer_Background_1_Texture_Filename[] = "assets/computer_background_1.png";
+char Computer_Background_2_Texture_Filename[] = "assets/computer_background_2.png";
+char Computer_Background_3_Texture_Filename[] = "assets/computer_background_3.png";
+char Paddle_Texture_Filename[] = "assets/paddle.png";
+char Ball_Texture_Filename[] = "assets/ball.png";
+char Ball_2_Texture_Filename[] = "assets/ball_2.png";
+char Bone_Texture_Filename[] = "assets/bone.png";
+
+void setup_computer(Level* level, SDL_Renderer* renderer)
+{
+    level->background_texture = loadTexture(Computer_Background_1_Texture_Filename, renderer);
+    level->num_pre_character_draw_obstacles = 7;
+    level->num_post_character_draw_obstacles = 2;
+    level->pre_character_draw_obstacles[0] = {50.0, 50.0, 100, 50, 0, 0, loadTexture(Bone_Texture_Filename, renderer) };
+    level->pre_character_draw_obstacles[1] = {150.0, 50.0, 100, 50, 0, 0, loadTexture(Bone_Texture_Filename, renderer) };
+    level->pre_character_draw_obstacles[2] = {250.0, 50.0, 100, 50, 0, 0, loadTexture(Bone_Texture_Filename, renderer) };
+    level->pre_character_draw_obstacles[3] = {350.0, 50.0, 100, 50, 0, 0, loadTexture(Bone_Texture_Filename, renderer) };
+    level->pre_character_draw_obstacles[4] = {450.0, 50.0, 100, 50, 0, 0, loadTexture(Bone_Texture_Filename, renderer) };
+    level->pre_character_draw_obstacles[5] = {550.0, 50.0, 100, 50, 0, 0, loadTexture(Bone_Texture_Filename, renderer) };
+    level->pre_character_draw_obstacles[6] = {650.0, 50.0, 100, 50, 0, 0, loadTexture(Bone_Texture_Filename, renderer) };
+    level->post_character_draw_obstacles[0] = { SCREEN_WIDTH / 2 - 150 / 2, SCREEN_HEIGHT - 25 * 2, 150, 25, 0, 0, loadTexture(Paddle_Texture_Filename, renderer) };
+    level->post_character_draw_obstacles[1] = { SCREEN_WIDTH / 2 - 25 / 2, SCREEN_HEIGHT - 25 * 2 - 25, 25, 25, 0, 0, loadTexture(Ball_Texture_Filename, renderer) };
+    level->x_init = SCREEN_WIDTH / 2 - PLAYER_WIDTH / 2;
+    level->y_init = SCREEN_HEIGHT - PLAYER_HEIGHT;
+    level->num_exits = 0;
+    level->exits[0] = { -100, -100, 100, 100, OFFICE_LEVEL_INDEX, SCREEN_WIDTH / 2 - PLAYER_WIDTH / 2, 400 };
+    level->init_level = &init_computer;
+    level->update_level = &update_computer;
+    level->pre_character_draw_level = NULL;
+    level->post_character_draw_level = NULL;
+    ComputerLevelData computer_level_data;
+    computer_level_data.counter = 0;    
+    computer_level_data.ball_1_texture = loadTexture(Ball_Texture_Filename, renderer);
+    computer_level_data.ball_2_texture = loadTexture(Ball_2_Texture_Filename, renderer);
+    computer_level_data.ball_1_texture_active = true;
+    computer_level_data.computer_face_1_texture = loadTexture(Computer_Background_1_Texture_Filename, renderer);
+    computer_level_data.computer_face_2_texture = loadTexture(Computer_Background_2_Texture_Filename, renderer);
+    computer_level_data.computer_face_3_texture = loadTexture(Computer_Background_3_Texture_Filename, renderer);
+    computer_level_data.face_1_active = true;
+    computer_level_data.ball_velocity_x = 0;
+    computer_level_data.ball_velocity_y = 0;
+    computer_level_data.bricks_remaining = 7;
+    computer_level_data.computer_pain_counter = 0;
+    computer_level_data.complete = false;
+    level->level_data = new ComputerLevelData();
+    memcpy(level->level_data, &computer_level_data, sizeof(ComputerLevelData));
+}
 
 void init_computer(Level* level, void* data, Entity* player)
 {

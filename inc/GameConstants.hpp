@@ -5,6 +5,8 @@
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
+const int PLAYER_WIDTH = 80;
+const int PLAYER_HEIGHT = 65;
 const int MAX_NUM_OBSTACLES = 20;
 const int MAX_NUM_COLLECTIBLES = 20;
 const int MAX_NUM_LEVELS = 20;
